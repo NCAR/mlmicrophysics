@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import xarray as xr
 from glob import glob
 from os.path import join, exists
@@ -46,6 +47,25 @@ def unstagger_vertical(dataset, variable, vertical_dim="lev"):
     return unstaggered_var_data
 
 
+def convert_to_dataframe(dataset, variables, times, time_var="time", subset_var="QC_TAU_in", subset_threshold=0):
+    """
+    Convert 4D Dataset to flat dataframe for machine learning.
 
+    Args:
+        dataset: xarray Dataset containing all relevant variables and times.
+        variables: List of variables in dataset to be included in DataFrame. All variables should have the same
+            dimensions and coordinates.
+        times: Iterable of times to select from dataset.
+        time_var: Variable used as the time coordinate.
+
+    Returns:
+
+    """
+    data_frames = []
+    for t, time in enumerate(times):
+        time_df = dataset[variables].isel(**{time_var: t}).to_dataframe()
+        data_frames.append(time_df.loc[time_df[subset_var] > subset_threshold].reset_index())
+        del time_df
+    return pd.concat(data_frames)
 
 
