@@ -49,7 +49,8 @@ class DenseNeuralNetwork(object):
 class DenseGAN(object):
     def __init__(self, hidden_layers=2, hidden_neurons=16, inputs=5, random_inputs=1, outputs=3, activation="relu",
                  optimizer="adam", loss="binary_crossentropy", use_noise=False, noise_sd=0.1, use_dropout=False,
-                 dropout_alpha=0.1, batch_norm_output=True, random_dist=norm(), batch_size=1024, epochs=20):
+                 dropout_alpha=0.1, batch_norm_output=True, random_dist=norm(), batch_size=1024, epochs=20,
+                 verbose=0, report_frequency=50):
         self.hidden_layers = hidden_layers
         self.hidden_neurons = hidden_neurons
         self.inputs = inputs
@@ -66,6 +67,8 @@ class DenseGAN(object):
         self.batch_norm_output = batch_norm_output
         self.epochs = epochs
         self.random_dist = random_dist
+        self.verbose = verbose
+        self.report_frequency = report_frequency
         self.generator = None
         self.discriminator = None
         self.gen_disc = None
@@ -132,12 +135,13 @@ class DenseGAN(object):
         gen_random_batch = np.zeros((self.batch_size, self.random_inputs))
         disc_random_batch = np.zeros((self.batch_size, self.random_inputs))
         x_gen_batch = np.zeros((self.batch_size, x_sub.shape[1]))
-        y_gen_batch = np.zeros((self.batch_size, y_sub.shape[1]))
         x_disc_batch = np.zeros((self.batch_size, x_sub.shape[1]))
         y_disc_batch = np.zeros((self.batch_size, y_sub.shape[1]))
         disc_batch_labels = np.zeros(self.batch_size)
         disc_batch_labels[:batch_half] = 1
         gen_batch_labels = np.ones(self.batch_size)
+        loss_history = dict(disc_loss=[], gen_loss=[], step=[], epoch=[], batch=[])
+        step = 0
         for epoch in range(self.epochs):
             np.random.shuffle(indices)
             for b, b_index in enumerate(np.arange(self.batch_size, x_sub.shape[0], self.batch_size * 2)):
@@ -147,9 +151,19 @@ class DenseGAN(object):
                 y_disc_batch[batch_half:] = self.gen_predict_func([x_sub[b_index - batch_half: b_index],
                                                                    disc_random_batch, 1])[0]
                 x_disc_batch[:] = x_sub[b_index - self.batch_size: b_index]
-                self.discriminator.train_on_batch([x_disc_batch, y_disc_batch], disc_batch_labels)
+                loss_history["disc_loss"].append(self.discriminator.train_on_batch([x_disc_batch, y_disc_batch],
+                                                                                   disc_batch_labels))
                 x_gen_batch[:] = x_sub[b_index: b_index + self.batch_size]
-                self.gen_disc.train_on_batch([x_gen_batch, gen_random_batch], gen_batch_labels)
+                loss_history["gen_loss"].append(self.gen_disc.train_on_batch([x_gen_batch, gen_random_batch],
+                                                                             gen_batch_labels))
+                loss_history["epoch"].append(epoch)
+                loss_history["batch"].append(b)
+                loss_history["step"].append(step)
+                if self.verbose > 0 and step % self.report_frequency == 0:
+                    print("Epoch {0:03d}, Batch {1:04d}, Step {2:06d}, Disc Loss: {3:0.4f} Gen Loss: {4:0.4f}".format(
+                        loss_history["epoch"][-1], loss_history["batch"][-1], loss_history["step"][-1],
+                        loss_history["disc_loss"][-1], loss_history["gen_loss"][-1]))
+                step += 1
 
     def predict(self, x):
         return self.generator.predict(x)
