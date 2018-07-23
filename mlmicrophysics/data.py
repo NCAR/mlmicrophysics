@@ -42,12 +42,12 @@ def unstagger_vertical(dataset, variable, vertical_dim="lev"):
     """
     var_data = dataset[variable]
     unstaggered_var_data = xr.DataArray(0.5 * (var_data[:, :-1].values + var_data[:, 1:].values),
-                                        coords=[var_data.time, var_data[vertical_dim], var_data.lat, var_data.lon],
+                                        coords=[var_data.time, dataset[vertical_dim], var_data.lat, var_data.lon],
                                         dims=("time", vertical_dim, "lat", "lon"))
     return unstaggered_var_data
 
 
-def convert_to_dataframe(dataset, variables, times, time_var="time", subset_var="QC_TAU_in", subset_threshold=0):
+def convert_to_dataframe(dataset, variables, times, time_var="time", subset_variable="QC_TAU_in", subset_threshold=0):
     """
     Convert 4D Dataset to flat dataframe for machine learning.
 
@@ -57,14 +57,17 @@ def convert_to_dataframe(dataset, variables, times, time_var="time", subset_var=
             dimensions and coordinates.
         times: Iterable of times to select from dataset.
         time_var: Variable used as the time coordinate.
-
+        subset_variable: Variable used to select a subset of grid points from file
+        subset_threshold: Threshold that must be exceeded for examples to be kept.
     Returns:
 
     """
     data_frames = []
     for t, time in enumerate(times):
-        time_df = dataset[variables].isel(**{time_var: t}).to_dataframe()
-        data_frames.append(time_df.loc[time_df[subset_var] > subset_threshold].reset_index())
+        print(t, time)
+        time_df = dataset[variables].sel(**{time_var: time}).to_dataframe()
+        data_frames.append(time_df.loc[time_df[subset_variable] > subset_threshold].reset_index())
+        print(data_frames[-1])
         del time_df
     return pd.concat(data_frames)
 

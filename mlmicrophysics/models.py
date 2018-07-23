@@ -6,6 +6,27 @@ from scipy.stats import norm
 
 
 class DenseNeuralNetwork(object):
+    """
+    A Dense Neural Network Model that can support arbitrary numbers of hidden layers.
+
+    Attributes:
+        hidden_layers: Number of hidden layers
+        hidden_neurons: Number of neurons in each hidden layer
+        inputs: Number of input values
+        outputs: Number of output values
+        activation: Type of activation function
+        output_activation: Activation function applied to the output layer
+        optimizer: Name of optimizer or optimizer object.
+        loss: Name of loss function or loss object
+        use_noise: Whether or not additive Gaussian noise layers are included in the network
+        noise_sd: The standard deviation of the Gaussian noise layers
+        use_dropout: Whether or not Dropout layers are added to the network
+        dropout_alpha: proportion of neurons randomly set to 0.
+        batch_size: Number of examples per batch
+        epochs: Number of epochs to train
+        verbose: Level of detail to provide during training
+        model: Keras Model object
+    """
     def __init__(self, hidden_layers=1, hidden_neurons=4, inputs=1, outputs=1, activation="relu",
                  output_activation="linear", optimizer="adam", loss="mse", use_noise=False, noise_sd=0.01,
                  use_dropout=False, dropout_alpha=0.1, batch_size=128, epochs=2, verbose=0):
