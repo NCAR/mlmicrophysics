@@ -1,8 +1,10 @@
 from keras.layers import Input, Dense, Dropout, GaussianNoise, Activation, Concatenate, BatchNormalization
 from keras.models import Model
+from keras.optimizers import Adam, SGD
 import keras.backend as K
 import numpy as np
-from scipy.stats import norm
+from scipy.stats import norm, randint, uniform, expon
+from sklearn.model_selection import ParameterSampler
 
 
 class DenseNeuralNetwork(object):
@@ -29,7 +31,8 @@ class DenseNeuralNetwork(object):
     """
     def __init__(self, hidden_layers=1, hidden_neurons=4, inputs=1, outputs=1, activation="relu",
                  output_activation="linear", optimizer="adam", loss="mse", use_noise=False, noise_sd=0.01,
-                 use_dropout=False, dropout_alpha=0.1, batch_size=128, epochs=2, verbose=0):
+                 lr=0.001, use_dropout=False, dropout_alpha=0.1, batch_size=128, epochs=2,
+                 sgd_momentum=0.9, adam_beta_1=0.9, adam_beta_2=0.999, decay=0, verbose=0):
         self.hidden_layers = hidden_layers
         self.hidden_neurons = hidden_neurons
         self.inputs = inputs
@@ -37,13 +40,19 @@ class DenseNeuralNetwork(object):
         self.activation = activation
         self.output_activation = output_activation
         self.optimizer = optimizer
+        self.optimizer_obj = None
+        self.sgd_momentum = sgd_momentum
+        self.adam_beta_1 = adam_beta_1
+        self.adam_beta_2 = adam_beta_2
         self.loss = loss
+        self.lr = lr
         self.batch_size = batch_size
         self.use_noise = use_noise
         self.noise_sd = noise_sd
         self.use_dropout = use_dropout
         self.dropout_alpha = dropout_alpha
         self.epochs = epochs
+        self.decay = decay
         self.verbose = verbose
         nn_input = Input(shape=(self.inputs,))
         nn_model = nn_input
@@ -57,6 +66,10 @@ class DenseNeuralNetwork(object):
         nn_model = Dense(self.outputs)(nn_model)
         nn_model = Activation(self.output_activation)(nn_model)
         self.model = Model(nn_input, nn_model)
+        if self.optimizer == "adam":
+            self.optimizer_obj = Adam(lr=self.lr, beta_1=self.adam_beta_1, beta_2=self.adam_beta_2, decay=self.decay)
+        elif self.optimizer == "sgd":
+            self.optimizer_obj = SGD(lr=self.lr, momentum=self.sgd_momentum, decay=self.decay)
         self.model.compile(optimizer=self.optimizer, loss=self.loss)
 
     def fit(self, x, y):
@@ -190,5 +203,13 @@ class DenseGAN(object):
         return self.generator.predict(x)
 
 
-
+def parse_model_config_params(model_params, num_settings, random_state):
+    param_distributions = dict()
+    dist_types = dict(randint=randint, expon=expon, uniform=uniform)
+    for param, param_value in model_params.items():
+        if param_value[0] in ["randint", "expon", "uniform"]:
+            param_distributions[param] = dist_types[param_value[0]](*param_value[1:])
+        else:
+            param_distributions[param] = param_value
+    return ParameterSampler(param_distributions, n_iter=num_settings, random_state=random_state)
 
