@@ -47,7 +47,25 @@ def unstagger_vertical(dataset, variable, vertical_dim="lev"):
     return unstaggered_var_data
 
 
-def convert_to_dataframe(dataset, variables, times, time_var="time", subset_variable="QC_TAU_in", subset_threshold=0):
+def add_index_coords(dataset, row_coord="lat", col_coord="lon", depth_coord="lev"):
+    dataset["row"] = xr.DataArray(np.arange(dataset[row_coord].shape[0]), dims=(row_coord,))
+    dataset["col"] = xr.DataArray(np.arange(dataset[col_coord].shape[0]), dims=(col_coord,))
+    dataset["depth"] = xr.DataArray(np.arange(dataset[depth_coord].shape[0]), dims=(depth_coord,))
+
+
+def calc_pressure_field(dataset, pressure_var_name="pressure"):
+    dataset[pressure_var_name] = (dataset["hyam"] * dataset["P0"] + dataset["hybm"] * dataset["PS"]).transpose("time", "lev", "lat", "lon")
+    dataset[pressure_var_name].attrs["units"] = "Pa"
+    dataset[pressure_var_name].attrs["long_name"] = "atmospheric pressure"
+
+
+def calc_temperature(dataset, density_variable="RHO_CLUBB_lev", pressure_variable="pressure"):
+    dataset["temperature"] = dataset[pressure_variable] / dataset[density_variable] / 287.0
+    dataset["temperature"].attrs["units"] = "K"
+    dataset["temperature"].attrs["long_name"] = "temperature derived from pressure and density"
+
+def convert_to_dataframe(dataset, variables, times, time_var="time",
+                         subset_variable="QC_TAU_in", subset_threshold=0):
     """
     Convert 4D Dataset to flat dataframe for machine learning.
 

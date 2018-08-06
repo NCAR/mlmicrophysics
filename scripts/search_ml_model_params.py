@@ -9,6 +9,10 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, RobustScaler, MaxAbsScaler, MinMaxScaler
 from sklearn.preprocessing import PolynomialFeatures
+model_classes = {"RandomForestRegressor": RandomForestRegressor,
+                 "DenseNeuralNetwork": DenseNeuralNetwork,
+                 "DenseGAN": DenseGAN}
+
 
 def main():
     parser = argparse.ArgumentParser()
