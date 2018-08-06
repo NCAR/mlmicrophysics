@@ -1,0 +1,11 @@
+model_path: "/Users/dgagne/data/cam_mp_files_limited/"
+model_file_start: "TAU_run1.cam.h1"
+model_file_end: "nc"
+time_var: "time"
+time_split_interval: 10
+staggered_variables: ["RHO_CLUBB"]
+csv_variables: ["P0", "PS", "depth", "row", "col", "hyam", "hybm", "pressure", "temperature", "RHO_CLUBB_lev", "QC_TAU_in", "NC_TAU_in", "QR_TAU_in", "NR_TAU_in", "prc_MG2", "nprc1_MG2",
+                "nprc_MG2", "pra_MG2", "npra_MG2", "nragg_MG2", "qctend_MG2", "qrtend_MG2"]
+subset_variable: "QC_TAU_in"
+subset_threshold: 0
+csv_path: "/Users/dgagne/data/cam_mp_files_csv/"

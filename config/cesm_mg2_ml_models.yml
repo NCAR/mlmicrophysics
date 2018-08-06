@@ -1,0 +1,31 @@
+data_path: /Users/dgagne/data/cam_mp_files_csv/
+subset_data:
+  train_date_start: 5.125
+  train_date_end: 363.875
+  test_date_start: 369
+  test_date_end: 727.75
+  validation_frequency: 3
+  subset_col: "time"
+random_seed: 32894230819
+model_path: /Users/dgagne/data/cam_mp_models/
+validation_metric: "rmse"
+input_cols: []
+output_cols: []
+num_param_samples: 1000
+models:
+  DenseNeuralNetwork:
+    hidden_layers: ["randint", 1, 10]
+    hidden_neurons: ["randint", 4, 100]
+    inputs: [5]
+    outputs: [4]
+    activation: ["relu", "selu", "tanh"]
+    output_activation: ["linear", "relu"]
+    optimizer: ["adam"]
+    loss: ["mse"]
+    use_noise: [0, 1]
+    noise_sd: ["expon", 0, 0.1]
+    lr: ["uniform", 0.00001, 0.1]
+    batch_size: ["randint", 32, 2048]
+  RandomForestRegressor:
+    n_estimators: ["randint", 50, 500]
+    min_samples_leaf: ["randint", 10, 1000]

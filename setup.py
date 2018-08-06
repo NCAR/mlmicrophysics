@@ -3,7 +3,7 @@ from setuptools import setup
 if __name__ == "__main__":
     setup(name="mlmicrophysics",
           version="0.1",
-          description="Machine learning emulator testbed for microphysics."
+          description="Machine learning emulator testbed for microphysics.",
           author="David John Gagne and Negin Sobhani",
           author_email="dgagne@ucar.edu",
           license="MIT",
