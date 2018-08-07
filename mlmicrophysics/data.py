@@ -108,6 +108,40 @@ def load_csv_data(csv_path, index_col="Index"):
     return pd.concat(all_data, axis=0)
 
 
+def subset_data_files_by_date(csv_path, train_date_start, train_date_end, test_date_start,
+                              test_date_end, validation_frequency=3):
+    """
+    For a large set of csv files, this sorts the files into training, validation and testing data.
+    This way the full dataset does not have to be loaded and then broken into pieces.
+
+    Args:
+        csv_path:
+        train_date_start:
+        train_date_end:
+        test_date_start:
+        test_date_end:
+        validation_frequency:
+
+    Returns:
+
+    """
+    if train_date_start > train_date_end:
+        raise ValueError("train_date_start should not be greater than train_date_end")
+    if test_date_start > test_date_end:
+        raise ValueError("test_date_start should not be greater than test_date_end")
+    if train_date_end > test_date_start:
+        raise ValueError("train and test date periods overlap.")
+    csv_files = pd.Series(sorted(glob(csv_path)))
+    file_times = csv_files.str.split("/")[-1].str.split("_")[-2].astype(int)
+    train_val_ind = np.where((file_times >= train_date_start) & (file_times <= train_date_end))[0]
+    test_ind = np.where((file_times >= test_date_start) & (file_times <= test_date_end))[0]
+    val_ind = train_val_ind[::validation_frequency]
+    train_ind = np.isin(train_val_ind, val_ind, invert=True)
+    train_files = csv_files[train_ind]
+    val_files = csv_files[val_ind]
+    test_files = csv_files[test_ind]
+    return train_files, val_files, test_files
+
 def subset_data_by_date(data, train_date_start=0, train_date_end=1, test_date_start=2, test_date_end=3,
                         validation_frequency=3, subset_col="time"):
     """
