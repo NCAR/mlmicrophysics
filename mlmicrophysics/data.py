@@ -48,18 +48,50 @@ def unstagger_vertical(dataset, variable, vertical_dim="lev"):
 
 
 def add_index_coords(dataset, row_coord="lat", col_coord="lon", depth_coord="lev"):
+    """
+
+
+    Args:
+        dataset:
+        row_coord:
+        col_coord:
+        depth_coord:
+
+    Returns:
+
+    """
     dataset["row"] = xr.DataArray(np.arange(dataset[row_coord].shape[0]), dims=(row_coord,))
     dataset["col"] = xr.DataArray(np.arange(dataset[col_coord].shape[0]), dims=(col_coord,))
     dataset["depth"] = xr.DataArray(np.arange(dataset[depth_coord].shape[0]), dims=(depth_coord,))
 
 
 def calc_pressure_field(dataset, pressure_var_name="pressure"):
+    """
+    Calculate pressure at each location based on the surface pressure and vertical coordinate
+    information.
+
+    Args:
+        dataset:
+        pressure_var_name:
+
+    Returns:
+
+    """
     dataset[pressure_var_name] = (dataset["hyam"] * dataset["P0"] + dataset["hybm"] * dataset["PS"]).transpose("time", "lev", "lat", "lon")
     dataset[pressure_var_name].attrs["units"] = "Pa"
     dataset[pressure_var_name].attrs["long_name"] = "atmospheric pressure"
 
 
 def calc_temperature(dataset, density_variable="RHO_CLUBB_lev", pressure_variable="pressure"):
+    """
+    Calculation temperature from pressure and density. The temperature variable is added to the
+    dataset object in place.
+
+    Args:
+        dataset: xarray Dataset object containing pressure and density variable
+        density_variable: name of the density variable
+        pressure_variable: name of the pressure variable
+    """
     dataset["temperature"] = dataset[pressure_variable] / dataset[density_variable] / 287.0
     dataset["temperature"].attrs["units"] = "K"
     dataset["temperature"].attrs["long_name"] = "temperature derived from pressure and density"
@@ -132,7 +164,7 @@ def subset_data_files_by_date(csv_path, train_date_start, train_date_end, test_d
     if train_date_end > test_date_start:
         raise ValueError("train and test date periods overlap.")
     csv_files = pd.Series(sorted(glob(csv_path)))
-    file_times = csv_files.str.split("/")[-1].str.split("_")[-2].astype(int)
+    file_times = csv_files.str.split("/").str[-1].str.split("_").str[-2].astype(int)
     train_val_ind = np.where((file_times >= train_date_start) & (file_times <= train_date_end))[0]
     test_ind = np.where((file_times >= test_date_start) & (file_times <= test_date_end))[0]
     val_ind = train_val_ind[::validation_frequency]
@@ -141,6 +173,7 @@ def subset_data_files_by_date(csv_path, train_date_start, train_date_end, test_d
     val_files = csv_files[val_ind]
     test_files = csv_files[test_ind]
     return train_files, val_files, test_files
+
 
 def subset_data_by_date(data, train_date_start=0, train_date_end=1, test_date_start=2, test_date_end=3,
                         validation_frequency=3, subset_col="time"):
@@ -179,3 +212,11 @@ def subset_data_by_date(data, train_date_start=0, train_date_end=1, test_date_st
     train_data = data.loc[np.isin(data[subset_col].values, train_dates)]
     validation_data = data.loc[np.isin(data[subset_col].values, validation_dates)]
     return train_data, validation_data, test_data
+
+
+def log10_transform(x, eps=1e-18):
+    return np.log10(np.maximum(x, eps))
+
+
+def neg_log10_transform(x, eps=1e-18):
+    return np.log10(np.maximum(-x, eps))

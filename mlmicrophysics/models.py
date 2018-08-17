@@ -167,7 +167,7 @@ class DenseGAN(object):
             y_sub = y
         indices = np.arange(x_sub.shape[0])
         gen_random_batch = np.zeros((self.batch_size, self.random_inputs))
-        disc_random_batch = np.zeros((self.batch_size, self.random_inputs))
+        disc_random_batch = np.zeros((batch_half, self.random_inputs))
         x_gen_batch = np.zeros((self.batch_size, x_sub.shape[1]))
         x_disc_batch = np.zeros((self.batch_size, x_sub.shape[1]))
         y_disc_batch = np.zeros((self.batch_size, y_sub.shape[1]))
