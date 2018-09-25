@@ -92,7 +92,7 @@ def split_staggered_variable(dataset, variable, vertical_dim="lev"):
                                                             var_data["lon"]],
                                    dims=("time", vertical_dim, "lat", "lon"),
                                    name=variable + "_bottom")
-    return xr.Dataset({variable + "top": top_var_data, variable + "bottom": bottom_var_data})
+    return xr.Dataset({variable + "_top": top_var_data, variable + "_bottom": bottom_var_data})
 
 
 def add_index_coords(dataset, row_coord="lat", col_coord="lon", depth_coord="lev"):
@@ -131,7 +131,6 @@ def calc_pressure_field(dataset, pressure_var_name="pressure"):
     pressure.name = pressure_var_name
     pressure.attrs["units"] = "Pa"
     pressure.attrs["long_name"] = "atmospheric pressure"
-    print(pressure)
     return pressure
 
 
