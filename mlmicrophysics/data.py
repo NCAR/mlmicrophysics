@@ -3,6 +3,7 @@ import pandas as pd
 import xarray as xr
 from glob import glob
 from os.path import join, exists
+from dask import delayed
 
 
 def load_cam_output(path, file_start="TAU_run1.cam.h1", file_end="nc"):
@@ -27,6 +28,22 @@ def load_cam_output(path, file_start="TAU_run1.cam.h1", file_end="nc"):
     return cam_dataset
 
 
+def get_cam_output_times(path, time_var="time", file_start="TAU_run1.cam.h1", file_end="nc"):
+    if not exists(path):
+        raise FileNotFoundError("Specified path " + path + " does not exist")
+    data_files = sorted(glob(join(path, file_start + "*" + file_end)))
+    file_time_list = []
+    for data_file in data_files:
+        ds = xr.open_dataset(data_file, decode_times=False, decode_cf=False)
+        time_minutes = (ds[time_var].values * 24 * 60).astype(int)
+        file_time_list.append(pd.DataFrame({"time": time_minutes,
+                                            "filename": [data_file] * len(time_minutes)}))
+        ds.close()
+        del ds
+    return pd.concat(file_time_list, ignore_index=True)
+
+
+
 def unstagger_vertical(dataset, variable, vertical_dim="lev"):
     """
     Interpolate a 4D variable on a staggered vertical grid to an unstaggered vertical grid. Will not execute
@@ -43,26 +60,97 @@ def unstagger_vertical(dataset, variable, vertical_dim="lev"):
     var_data = dataset[variable]
     unstaggered_var_data = xr.DataArray(0.5 * (var_data[:, :-1].values + var_data[:, 1:].values),
                                         coords=[var_data.time, dataset[vertical_dim], var_data.lat, var_data.lon],
-                                        dims=("time", vertical_dim, "lat", "lon"))
+                                        dims=("time", vertical_dim, "lat", "lon"),
+                                        name=variable + "_" + vertical_dim)
     return unstaggered_var_data
 
 
+
+def split_staggered_variable(dataset, variable, vertical_dim="lev"):
+    """
+    Split vertically staggered variable into top and bottom subsets with the unstaggered
+    vertical coordinate
+
+    Args:
+        dataset: xarray Dataset object
+        variable: Name of staggered variable
+        vertical_dim: Unstaggered vertical dimension
+
+    Returns:
+        top_var_data, bottom_var_data: xarray DataArrays containing the unstaggered vertical data
+    """
+    var_data = dataset[variable]
+    top_var_data = xr.DataArray(var_data[:, :-1], coords=[var_data.time,
+                                                          dataset[vertical_dim],
+                                                          var_data["lat"],
+                                                          var_data["lon"]],
+                                dims=("time", vertical_dim, "lat", "lon"),
+                                name=variable + "_top")
+    bottom_var_data = xr.DataArray(var_data[:, 1:], coords=[var_data.time,
+                                                            dataset[vertical_dim],
+                                                            var_data["lat"],
+                                                            var_data["lon"]],
+                                   dims=("time", vertical_dim, "lat", "lon"),
+                                   name=variable + "_bottom")
+    return xr.Dataset({variable + "top": top_var_data, variable + "bottom": bottom_var_data})
+
+
 def add_index_coords(dataset, row_coord="lat", col_coord="lon", depth_coord="lev"):
-    dataset["row"] = xr.DataArray(np.arange(dataset[row_coord].shape[0]), dims=(row_coord,))
-    dataset["col"] = xr.DataArray(np.arange(dataset[col_coord].shape[0]), dims=(col_coord,))
-    dataset["depth"] = xr.DataArray(np.arange(dataset[depth_coord].shape[0]), dims=(depth_coord,))
+    """
+    Calculate the index values of the row, column, and depth coordinates in a Dataset.
+    Indices range from 0 to length of coordinate - 1.
+
+    Args:
+        dataset: xarray Dataset
+        row_coord: name of the row coordinate variable. Default lat.
+        col_coord: name of the column coordinate variable. Default lon.
+        depth_coord: name of the depth coordinate variable. Default lev.
+
+    Returns:
+        row, col, depth: DataArrays with the row, col, and depth indices
+    """
+    row = xr.DataArray(np.arange(dataset[row_coord].shape[0]), dims=(row_coord,), name="row")
+    col = xr.DataArray(np.arange(dataset[col_coord].shape[0]), dims=(col_coord,), name="col")
+    depth = xr.DataArray(np.arange(dataset[depth_coord].shape[0]), dims=(depth_coord,), name="depth")
+    return xr.Dataset({"row": row, "col": col, "depth": depth})
 
 
 def calc_pressure_field(dataset, pressure_var_name="pressure"):
-    dataset[pressure_var_name] = (dataset["hyam"] * dataset["P0"] + dataset["hybm"] * dataset["PS"]).transpose("time", "lev", "lat", "lon")
-    dataset[pressure_var_name].attrs["units"] = "Pa"
-    dataset[pressure_var_name].attrs["long_name"] = "atmospheric pressure"
+    """
+    Calculate pressure at each location based on the surface pressure and vertical coordinate
+    information.
+
+    Args:
+        dataset:
+        pressure_var_name:
+
+    Returns:
+
+    """
+    pressure = xr.DataArray((dataset["hyam"] * dataset["P0"] + dataset["hybm"] * dataset["PS"]).transpose("time", "lev", "lat", "lon"))
+    pressure.name = pressure_var_name
+    pressure.attrs["units"] = "Pa"
+    pressure.attrs["long_name"] = "atmospheric pressure"
+    print(pressure)
+    return pressure
 
 
 def calc_temperature(dataset, density_variable="RHO_CLUBB_lev", pressure_variable="pressure"):
-    dataset["temperature"] = dataset[pressure_variable] / dataset[density_variable] / 287.0
-    dataset["temperature"].attrs["units"] = "K"
-    dataset["temperature"].attrs["long_name"] = "temperature derived from pressure and density"
+    """
+    Calculation temperature from pressure and density. The temperature variable is added to the
+    dataset object in place.
+
+    Args:
+        dataset: xarray Dataset object containing pressure and density variable
+        density_variable: name of the density variable
+        pressure_variable: name of the pressure variable
+    """
+    temperature = dataset[pressure_variable] / dataset[density_variable] / 287.0
+    temperature.attrs["units"] = "K"
+    temperature.attrs["long_name"] = "temperature derived from pressure and density"
+    temperature.name = "temperature"
+    return temperature
+
 
 def convert_to_dataframe(dataset, variables, times, time_var="time",
                          subset_variable="QC_TAU_in", subset_threshold=0):
@@ -132,7 +220,7 @@ def subset_data_files_by_date(csv_path, train_date_start, train_date_end, test_d
     if train_date_end > test_date_start:
         raise ValueError("train and test date periods overlap.")
     csv_files = pd.Series(sorted(glob(csv_path)))
-    file_times = csv_files.str.split("/")[-1].str.split("_")[-2].astype(int)
+    file_times = csv_files.str.split("/").str[-1].str.split("_").str[-2].astype(int)
     train_val_ind = np.where((file_times >= train_date_start) & (file_times <= train_date_end))[0]
     test_ind = np.where((file_times >= test_date_start) & (file_times <= test_date_end))[0]
     val_ind = train_val_ind[::validation_frequency]
@@ -141,6 +229,7 @@ def subset_data_files_by_date(csv_path, train_date_start, train_date_end, test_d
     val_files = csv_files[val_ind]
     test_files = csv_files[test_ind]
     return train_files, val_files, test_files
+
 
 def subset_data_by_date(data, train_date_start=0, train_date_end=1, test_date_start=2, test_date_end=3,
                         validation_frequency=3, subset_col="time"):
@@ -179,3 +268,11 @@ def subset_data_by_date(data, train_date_start=0, train_date_end=1, test_date_st
     train_data = data.loc[np.isin(data[subset_col].values, train_dates)]
     validation_data = data.loc[np.isin(data[subset_col].values, validation_dates)]
     return train_data, validation_data, test_data
+
+
+def log10_transform(x, eps=1e-18):
+    return np.log10(np.maximum(x, eps))
+
+
+def neg_log10_transform(x, eps=1e-18):
+    return np.log10(np.maximum(-x, eps))

@@ -12,6 +12,10 @@ validation_metric: "rmse"
 input_cols: []
 output_cols: []
 num_param_samples: 1000
+input_transforms: []
+output_transforms: []
+input_scaler: "MinMaxScaler"
+output_scaler: "MinMaxScaler"
 models:
   DenseNeuralNetwork:
     hidden_layers: ["randint", 1, 10]
