@@ -1,5 +1,5 @@
 import unittest
-from .models import DenseNeuralNetwork
+from .models import DenseNeuralNetwork, DenseGAN
 from keras.layers import Dense
 import numpy as np
 
@@ -21,5 +21,13 @@ class TestModels(unittest.TestCase):
         random_y = random_x ** 2
         net_default.fit(random_x, random_y)
 
-
+    def test_gan(self):
+        num_inputs = 1
+        random_x = np.random.normal(size=(2048, num_inputs))
+        gan_default = DenseGAN(inputs=num_inputs)
+        random_y = random_x ** 2
+        gan_default.fit(random_x, random_y)
+        predictions = gan_default.predict(random_x)
+        self.assertEqual(predictions.shape[0], random_y.shape[0],
+                         "Length of GAN predictions does not match number of examples")
 
