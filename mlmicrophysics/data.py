@@ -223,6 +223,7 @@ def subset_data_files_by_date(data_path, data_end,
         raise ValueError("train and test date periods overlap.")
     csv_files = pd.Series(sorted(glob(join(data_path, "*" + data_end))))
     file_times = csv_files.str.split("/").str[-1].str.split("_").str[-1].str.strip(data_end).astype(int)
+    print(file_times)
     train_val_ind = np.where((file_times >= train_date_start) & (file_times <= train_date_end))[0]
     test_ind = np.where((file_times >= test_date_start) & (file_times <= test_date_end))[0]
     val_ind = train_val_ind[::validation_frequency]

@@ -35,8 +35,7 @@ def main():
         raise FileNotFoundError(args.config + " not found.")
     with open(args.config) as config_file:
         config = yaml.load(config_file)
-    cluster = LocalCluster(n_workers=args.proc)
-    client = Client(cluster)
+
     train_files, val_files, test_files = subset_data_files_by_date(config["data_path"],
                                                                    config["data_end"], **config["subset_data"])
     input_scaler = scalers[config["input_scaler"]]()
@@ -48,6 +47,8 @@ def main():
                                                     config["output_transforms"],
                                                     input_scaler,
                                                     output_scaler)
+    cluster = LocalCluster(n_workers=args.proc)
+    client = Client(cluster)
     train_input_pointer = client.scatter(train_input)
     train_output_pointer = client.scatter(train_output)
     val_input, val_output = assemble_data_files(val_files,
