@@ -3,7 +3,7 @@ out_path: /glade/scratch/dgagne/cam_mp_run2_ml_val/
 data_end: ".csv.gz"
 subset_data:
   train_date_start: 0
-  train_date_end: 8733
+  train_date_end: 1353
   test_date_start: 8856
   test_date_end: 17466
   validation_frequency: 3
@@ -38,6 +38,7 @@ models:
     noise_sd: ["expon", 0, 0.1]
     lr: ["uniform", 0.00001, 0.1]
     batch_size: ["randint", 32, 2048]
+    epochs: [20]
   RandomForestRegressor:
     n_estimators: ["randint", 50, 500]
     min_samples_leaf: ["randint", 10, 1000]

@@ -4,9 +4,7 @@ from keras.regularizers import l2
 from keras.optimizers import Adam, SGD
 import keras.backend as K
 import numpy as np
-from scipy.stats import norm, randint, uniform, expon
-from sklearn.model_selection import ParameterSampler
-
+from scipy.stats import norm
 
 class DenseNeuralNetwork(object):
     """
@@ -65,13 +63,13 @@ class DenseNeuralNetwork(object):
                 nn_model = Dropout(self.dropout_alpha)(nn_model)
             if self.use_noise:
                 nn_model = GaussianNoise(self.noise_sd)(nn_model)
-        nn_model_out = Dense(int(self.outputs))(nn_model)
+        nn_model = Dense(self.outputs)(nn_model)
         #nn_model_out = []
         #for i in range(self.outputs):
         #    nn_model_out.append(Dense(self.hidden_neurons, kernel_regularizer=l2(self.l2_weight))(nn_model))
         #    nn_model_out[-1] = Activation(self.activation)(nn_model_out[-1])
         #    nn_model_out[-1] = Dense(1, activation=output_activation)(nn_model_out[-1])
-        self.model = Model(nn_input, nn_model_out)
+        self.model = Model(nn_input, nn_model)
         if self.optimizer == "adam":
             self.optimizer_obj = Adam(lr=self.lr, beta_1=self.adam_beta_1, beta_2=self.adam_beta_2, decay=self.decay)
         elif self.optimizer == "sgd":
@@ -223,15 +221,4 @@ class DenseGAN(object):
         else:
             predictions = self.generator.predict(x)
         return predictions
-
-
-def parse_model_config_params(model_params, num_settings, random_state):
-    param_distributions = dict()
-    dist_types = dict(randint=randint, expon=expon, uniform=uniform)
-    for param, param_value in model_params.items():
-        if param_value[0] in ["randint", "expon", "uniform"]:
-            param_distributions[param] = dist_types[param_value[0]](*param_value[1:])
-        else:
-            param_distributions[param] = param_value
-    return ParameterSampler(param_distributions, n_iter=num_settings, random_state=random_state)
 

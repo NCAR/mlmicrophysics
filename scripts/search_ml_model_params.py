@@ -5,15 +5,14 @@ import argparse
 from os.path import exists, join
 from os import mkdir
 from mlmicrophysics.data import subset_data_files_by_date, log10_transform, neg_log10_transform
-from mlmicrophysics.models import DenseNeuralNetwork, DenseGAN, parse_model_config_params
 from sklearn.ensemble import RandomForestRegressor
+from mlmicrophysics.models import DenseNeuralNetwork, DenseGAN
 from sklearn.preprocessing import StandardScaler, RobustScaler, MaxAbsScaler, MinMaxScaler
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+from sklearn.model_selection import ParameterSampler
+from scipy.stats import norm, randint, uniform, expon
 import pandas as pd
 
-model_classes = {"RandomForestRegressor": RandomForestRegressor,
-                 "DenseNeuralNetwork": DenseNeuralNetwork,
-                 "DenseGAN": DenseGAN}
 scalers = {"MinMaxScaler": MinMaxScaler,
            "MaxAbsScaler": MaxAbsScaler,
            "StandardScaler": StandardScaler,
@@ -21,9 +20,15 @@ scalers = {"MinMaxScaler": MinMaxScaler,
 transforms = {"log10_transform": log10_transform,
               "neg_log10_transform": neg_log10_transform}
 
-metrics = {"mse": mean_squared_error,
-           "mae": mean_absolute_error,
-           "r2": r2_score}
+def parse_model_config_params(model_params, num_settings, random_state):
+    param_distributions = dict()
+    dist_types = dict(randint=randint, expon=expon, uniform=uniform)
+    for param, param_value in model_params.items():
+        if param_value[0] in ["randint", "expon", "uniform"]:
+            param_distributions[param] = dist_types[param_value[0]](*param_value[1:])
+        else:
+            param_distributions[param] = param_value
+    return ParameterSampler(param_distributions, n_iter=num_settings, random_state=random_state)
 
 
 def main():
@@ -47,6 +52,7 @@ def main():
                                                     config["output_transforms"],
                                                     input_scaler,
                                                     output_scaler)
+   
     cluster = LocalCluster(n_workers=args.proc)
     client = Client(cluster)
     print(client)
@@ -128,17 +134,28 @@ def validate_model_configuration(model_name, model_config,
                                  train_input, train_output,
                                  val_input, val_output,
                                  metric_list):
-    model_obj = model_classes[model_name](**model_config)
-    print("training", model_name, model_config)
-    model_obj.fit(train_input, train_output)
-    print("validating", model_name, model_config)
-    model_preds = model_obj.predict(val_input)
-    out_metrics = pd.DataFrame(dtype=float, index=metric_list, columns=output_cols)
-    for metric in metric_list:
-        out_metrics.loc[metric] = metrics[metric](val_output, model_preds)
-    metrics_series = out_metrics.stack()
-    metrics_series.index = metrics_series.index.to_series().str.join("_").values
-    val_entry = pd.concat([pd.Series({"name": model_name}), pd.Series(model_config), metrics_series])
+    
+    import keras.backend as K
+    model_classes = {"RandomForestRegressor": RandomForestRegressor,
+                 "DenseNeuralNetwork": DenseNeuralNetwork,
+                 "DenseGAN": DenseGAN}
+    
+    metrics = {"mse": mean_squared_error,
+           "mae": mean_absolute_error,
+           "r2": r2_score}
+    sess = K.tf.Session(config=K.tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1))
+    K.set_session(sess)
+    with sess.as_default():
+        model_obj = model_classes[model_name](**model_config)
+        model_obj.fit(train_input, train_output)
+        model_preds = model_obj.predict(val_input)
+        out_metrics = pd.DataFrame(0, dtype=float, index=metric_list, columns=output_cols)
+        for metric in metric_list:
+            out_metrics.loc[metric] = metrics[metric](val_output, model_preds, multioutput="raw_values")
+        metrics_series = out_metrics.stack()
+        metrics_series.index = metrics_series.index.to_series().str.join("_").values
+        val_entry = pd.concat([pd.Series({"name": model_name}), pd.Series(model_config), metrics_series])
+    sess.close()
     return model_name, val_entry
 
 if __name__ == "__main__":

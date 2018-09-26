@@ -20,6 +20,7 @@ class TestModels(unittest.TestCase):
         random_x = np.random.normal(size=(2048, net_default.inputs))
         random_y = random_x ** 2
         net_default.fit(random_x, random_y)
+        net_default.predict(random_x)
 
     def test_gan(self):
         num_inputs = 1
