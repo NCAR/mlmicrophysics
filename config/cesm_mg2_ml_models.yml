@@ -7,7 +7,7 @@ subset_data:
   test_date_start: 8856
   test_date_end: 17466
   validation_frequency: 3
-random_seed: 32894230819
+random_seed: 328942
 model_path: /glade/scratch/dgagne/cam_mp_run2_models/
 metrics: ["mse", "mae", "r2"]
 input_cols: ["pressure", "temperature", "RHO_CLUBB_lev", "RHO_CLUBB_top", "RHO_CLUBB_bottom",
@@ -28,7 +28,7 @@ models:
   DenseNeuralNetwork:
     hidden_layers: ["randint", 1, 10]
     hidden_neurons: ["randint", 4, 100]
-    inputs: [5]
+    inputs: [9]
     outputs: [4]
     activation: ["relu", "selu", "tanh"]
     output_activation: ["linear", "relu"]

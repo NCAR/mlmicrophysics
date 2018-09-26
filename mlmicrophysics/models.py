@@ -65,17 +65,19 @@ class DenseNeuralNetwork(object):
                 nn_model = Dropout(self.dropout_alpha)(nn_model)
             if self.use_noise:
                 nn_model = GaussianNoise(self.noise_sd)(nn_model)
-        nn_model_out = []
-        for i in range(self.outputs):
-            nn_model_out.append(Dense(self.hidden_neurons, kernel_regularizer=l2(self.l2_weight))(nn_model))
-            nn_model_out[-1] = Activation(self.activation)(nn_model_out[-1])
-            nn_model_out[-1] = Dense(1, activation=output_activation)(nn_model_out[-1])
+        nn_model_out = Dense(int(self.outputs))(nn_model)
+        #nn_model_out = []
+        #for i in range(self.outputs):
+        #    nn_model_out.append(Dense(self.hidden_neurons, kernel_regularizer=l2(self.l2_weight))(nn_model))
+        #    nn_model_out[-1] = Activation(self.activation)(nn_model_out[-1])
+        #    nn_model_out[-1] = Dense(1, activation=output_activation)(nn_model_out[-1])
         self.model = Model(nn_input, nn_model_out)
         if self.optimizer == "adam":
             self.optimizer_obj = Adam(lr=self.lr, beta_1=self.adam_beta_1, beta_2=self.adam_beta_2, decay=self.decay)
         elif self.optimizer == "sgd":
             self.optimizer_obj = SGD(lr=self.lr, momentum=self.sgd_momentum, decay=self.decay)
-        self.model.compile(optimizer=self.optimizer, loss=[self.loss] * self.outputs)
+        self.model.compile(optimizer=self.optimizer, loss=self.loss)
+        print(self.model.summary())
 
     def fit(self, x, y):
         self.model.fit(x, y, batch_size=self.batch_size, epochs=self.epochs, verbose=self.verbose)

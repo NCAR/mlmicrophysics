@@ -49,6 +49,7 @@ def main():
                                                     output_scaler)
     cluster = LocalCluster(n_workers=args.proc)
     client = Client(cluster)
+    print(client)
     train_input_pointer = client.scatter(train_input)
     train_output_pointer = client.scatter(train_output)
     val_input, val_output = assemble_data_files(val_files,
@@ -63,17 +64,20 @@ def main():
     val_output_pointer = client.scatter(val_output)
     submissions = []
     val_results = dict()
-    for model_name, model_params in config["models"]:
+    for model_name, model_params in config["models"].items():
+        print(model_name)
         model_config_generator = parse_model_config_params(model_params,
                                                            config["num_param_samples"],
                                                            np.random.RandomState(config["random_seed"]))
         val_results[model_name] = []
         for model_config in model_config_generator:
+            print(model_name, model_config)
             submissions.append(client.submit(validate_model_configuration, model_name, model_config,
                                config["input_cols"], config["output_cols"], train_input_pointer,
                                train_output_pointer, val_input_pointer, val_output_pointer,
                                config["metrics"]))
-    for result in as_completed(submissions):
+    for out in as_completed(submissions):
+        result = out.result()
         print(result)
         val_results[result[0]].append(result[1])
     val_frames = {}
@@ -94,18 +98,22 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
     all_input_data = []
     all_output_data = []
     for filename in files:
+        print(filename)
         data = pd.read_csv(filename, index_col="Index")
         all_input_data.append(data[input_cols])
         all_output_data.append(data[output_cols])
         del data
+    print("Combining data")
     combined_input_data = pd.concat(all_input_data)
     combined_output_data = pd.concat(all_output_data)
     del all_input_data[:]
     del all_output_data[:]
+    print("Transforming data")
     for var, transform_name in input_transforms.items():
         combined_input_data.loc[:, var] = transforms[transform_name](combined_input_data[var])
     for var, transform_name in output_transforms.items():
         combined_output_data.loc[:, var] = transforms[transform_name](combined_output_data[var])
+    print("Scaling data")
     if train:
         scaled_input_data = input_scaler.fit_transform(combined_input_data)
         scaled_output_data = output_scaler.fit_transform(combined_output_data)
@@ -121,13 +129,15 @@ def validate_model_configuration(model_name, model_config,
                                  val_input, val_output,
                                  metric_list):
     model_obj = model_classes[model_name](**model_config)
+    print("training", model_name, model_config)
     model_obj.fit(train_input, train_output)
+    print("validating", model_name, model_config)
     model_preds = model_obj.predict(val_input)
     out_metrics = pd.DataFrame(dtype=float, index=metric_list, columns=output_cols)
     for metric in metric_list:
         out_metrics.loc[metric] = metrics[metric](val_output, model_preds)
     metrics_series = out_metrics.stack()
-    metrics_series.index = metrics_series.index.to_series.str.join("_").values
+    metrics_series.index = metrics_series.index.to_series().str.join("_").values
     val_entry = pd.concat([pd.Series({"name": model_name}), pd.Series(model_config), metrics_series])
     return model_name, val_entry
 
