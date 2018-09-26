@@ -51,6 +51,7 @@ def main():
                    subset_variable=config["subset_variable"],
                    subset_threshold=config["subset_threshold"],
                    out_path=config["out_path"],
+                   out_start=config["out_start"],
                    out_format=config["out_format"])
         out = client.gather(futures)
         print(out)
@@ -60,7 +61,7 @@ def main():
 
 def process_cesm_file_subset(filename, staggered_variables=None, time_var="time", out_variables=None,
                              subset_variable="QC_TAU_in", subset_threshold=1e-18, out_path="./",
-                             out_format="csv"):
+                             out_start="cam_mp_data", out_format="csv"):
     model_ds = xr.open_dataset(filename, decode_times=False)
     for staggered_variable in staggered_variables:
         model_ds[staggered_variable + "_lev"] = unstagger_vertical(model_ds, staggered_variable)
@@ -76,7 +77,7 @@ def process_cesm_file_subset(filename, staggered_variables=None, time_var="time"
         time_sub_df = time_df.loc[time_df[subset_variable] >= subset_threshold].reset_index()
         del time_df
         if out_format == "csv":
-            time_sub_df.to_csv(join(out_path, "cam_mp_data_{0:06d}.csv.gz".format(time_hours)),
+            time_sub_df.to_csv(join(out_path, "{0}_{1:06d}.csv.gz".format(out_start, time_hours)),
                                index_label="Index", compression="gzip")
     model_ds.close()
     del model_ds

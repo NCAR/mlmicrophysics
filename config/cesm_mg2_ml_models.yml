@@ -1,21 +1,29 @@
-data_path: /Users/dgagne/data/cam_mp_files_csv/
+data_path: /glade/scratch/dgagne/cam_mp_files_run2_csv/
+out_path: /glade/scratch/dgagne/cam_mp_run2_ml_val/
+data_end: ".csv.gz"
 subset_data:
-  train_date_start: 5.125
-  train_date_end: 363.875
-  test_date_start: 369
-  test_date_end: 727.75
+  train_date_start: 0
+  train_date_end: 8733
+  test_date_start: 8856
+  test_date_end: 17466
   validation_frequency: 3
-  subset_col: "time"
 random_seed: 32894230819
-model_path: /Users/dgagne/data/cam_mp_models/
-validation_metric: "rmse"
-input_cols: []
-output_cols: []
-num_param_samples: 1000
-input_transforms: []
-output_transforms: []
-input_scaler: "MinMaxScaler"
-output_scaler: "MinMaxScaler"
+model_path: /glade/scratch/dgagne/cam_mp_run2_models/
+metrics: ["mse", "mae", "r2"]
+input_cols: ["pressure", "temperature", "RHO_CLUBB_lev", "RHO_CLUBB_top", "RHO_CLUBB_bottom",
+             "QC_TAU_in", "NC_TAU_in", "QR_TAU_in", "NR_TAU_in",]
+output_cols: ["qctend_MG2", "qrtend_MG2", "nctend_MG2", "nrtend_MG2"]
+num_param_samples: 10
+input_transforms:
+    QC_TAU_in: log10_transform
+    NC_TAU_in: log10_transform
+    QR_TAU_in: log10_transform
+    NR_TAU_in: log10_transform
+output_transforms:
+    qctend_MG2: neg_log10_transform
+    qrtend_MG2: log10_transform
+input_scaler: "StandardScaler"
+output_scaler: "StandardScaler"
 models:
   DenseNeuralNetwork:
     hidden_layers: ["randint", 1, 10]

@@ -1,5 +1,5 @@
-model_path: "/gpfs/fs1/scratch/cchen/archive/TAU_run2/atm/hist"
-model_file_start: "TAU_run2.cam.h1"
+model_path: "/gpfs/fs1/scratch/cchen/archive/TAU_run3/atm/hist"
+model_file_start: "TAU_run3.cam.h1"
 model_file_end: "nc"
 time_var: "time"
 time_split_interval: 1
@@ -11,6 +11,6 @@ out_variables: ["P0", "PS", "depth", "row", "col", "hyam", "hybm", "pressure", "
                 "qrtend_MG2", "qrtend_TAU", "nrtend_MG2", "nrtend_TAU"]
 subset_variable: "QC_TAU_in"
 subset_threshold: 1.0e-18
-out_path: "/glade/scratch/dgagne/cam_mp_files_run2_csv/"
-out_start: "cam_mp_data_run2"
+out_path: "/glade/scratch/dgagne/cam_mp_files_run3_csv/"
+out_start: "cam_mp_data_run3"
 out_format: "csv"
