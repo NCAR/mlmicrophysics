@@ -60,7 +60,7 @@ def main():
 
 
 def process_cesm_file_subset(filename, staggered_variables=None, time_var="time", out_variables=None,
-                             subset_variable="QC_TAU_in", subset_threshold=1e-18, out_path="./",
+                             subset_variable="QC_TAU_in", subset_threshold=1e-6, out_path="./",
                              out_start="cam_mp_data", out_format="csv"):
     model_ds = xr.open_dataset(filename, decode_times=False)
     for staggered_variable in staggered_variables:
@@ -77,8 +77,8 @@ def process_cesm_file_subset(filename, staggered_variables=None, time_var="time"
         time_sub_df = time_df.loc[time_df[subset_variable] >= subset_threshold].reset_index()
         del time_df
         if out_format == "csv":
-            time_sub_df.to_csv(join(out_path, "{0}_{1:06d}.csv.gz".format(out_start, time_hours)),
-                               index_label="Index", compression="gzip")
+            time_sub_df.to_csv(join(out_path, "{0}_{1:06d}.csv".format(out_start, time_hours)),
+                               index_label="Index")
     model_ds.close()
     del model_ds
     return

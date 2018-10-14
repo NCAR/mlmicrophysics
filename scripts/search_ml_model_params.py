@@ -106,6 +106,7 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
     for filename in files:
         print(filename)
         data = pd.read_csv(filename, index_col="Index")
+        data = data.loc[data["NC_TAU_in"] >= 10]
         all_input_data.append(data[input_cols])
         all_output_data.append(data[output_cols])
         del data

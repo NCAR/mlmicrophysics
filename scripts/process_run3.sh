@@ -9,7 +9,6 @@
 #PBS -l select=1:ncpus=36:mpiprocs=36
 module purge
 source ~/.bash_profile
-conda_start
-source activate deep
+export PATH="/glade/u/home/dgagne/miniconda3/envs/deep/bin:$PATH"
 cd ~/mlmicrophysics/scripts
 python -u process_cesm_output.py ../config/cesm_tau_run3_process.yml -p 5 >& tau_run3_process.log
