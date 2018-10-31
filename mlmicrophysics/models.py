@@ -32,7 +32,8 @@ class DenseNeuralNetwork(object):
     def __init__(self, hidden_layers=1, hidden_neurons=4, inputs=1, outputs=1, activation="relu",
                  output_activation="linear", optimizer="adam", loss="mse", use_noise=False, noise_sd=0.01,
                  lr=0.001, use_dropout=False, dropout_alpha=0.1, batch_size=128, epochs=2,
-                 l2_weight=0.01, sgd_momentum=0.9, adam_beta_1=0.9, adam_beta_2=0.999, decay=0, verbose=0):
+                 l2_weight=0.01, sgd_momentum=0.9, adam_beta_1=0.9, adam_beta_2=0.999, decay=0, verbose=0,
+                 classifier=False):
         self.hidden_layers = hidden_layers
         self.hidden_neurons = hidden_neurons
         self.inputs = inputs
@@ -55,6 +56,8 @@ class DenseNeuralNetwork(object):
         self.epochs = epochs
         self.decay = decay
         self.verbose = verbose
+        self.classifier = classifier
+        self.y_labels = None
         nn_input = Input(shape=(self.inputs,))
         nn_model = nn_input
         for h in range(self.hidden_layers):
@@ -64,7 +67,7 @@ class DenseNeuralNetwork(object):
                 nn_model = Dropout(self.dropout_alpha)(nn_model)
             if self.use_noise:
                 nn_model = GaussianNoise(self.noise_sd)(nn_model)
-        nn_model = Dense(self.outputs)(nn_model)
+        nn_model = Dense(self.outputs, activation=self.output_activation)(nn_model)
         #nn_model_out = []
         #for i in range(self.outputs):
         #    nn_model_out.append(Dense(self.hidden_neurons, kernel_regularizer=l2(self.l2_weight))(nn_model))
@@ -76,14 +79,25 @@ class DenseNeuralNetwork(object):
         elif self.optimizer == "sgd":
             self.optimizer_obj = SGD(lr=self.lr, momentum=self.sgd_momentum, decay=self.decay)
         self.model.compile(optimizer=self.optimizer, loss=self.loss)
-        print(self.model.summary())
 
     def fit(self, x, y):
-        self.model.fit(x, y, batch_size=self.batch_size, epochs=self.epochs, verbose=self.verbose)
+        if self.classifier:
+            self.y_labels = np.unique(y)
+            y_class = np.zeros((y.shape[0], self.y_labels.size), dtype=np.int32)
+            for l, label in enumerate(self.y_labels):
+                y_class[y == label, l] = 1
+            self.model.fit(x, y_class, batch_size=self.batch_size, epochs=self.epochs, verbose=self.verbose)
+        else:
+            self.model.fit(x, y, batch_size=self.batch_size, epochs=self.epochs, verbose=self.verbose)
         return
 
     def predict(self, x):
-        return np.array(self.model.predict(x, batch_size=self.batch_size))
+        if self.classifier:
+            y_prob = self.model.predict(x, batch_size=self.batch_size)
+            y_out = self.y_labels[np.argmax(y_prob, axis=1)].ravel()
+        else:
+            y_out = self.model.predict(x, batch_size=self.batch_size).ravel()
+        return y_out
 
 
 class DenseGAN(object):
@@ -108,7 +122,7 @@ class DenseGAN(object):
     def __init__(self, hidden_layers=2, hidden_neurons=16, inputs=1, outputs=1, activation="relu",
                  optimizer="adam", loss="binary_crossentropy", use_noise=False, noise_sd=0.1, use_dropout=False,
                  dropout_alpha=0.1, batch_norm_output=True, batch_size=1024, epochs=20,
-                 verbose=0, report_frequency=50):
+                 verbose=0, report_frequency=50, classifier=False):
         self.hidden_layers = hidden_layers
         self.hidden_neurons = hidden_neurons
         self.inputs = inputs
@@ -125,6 +139,7 @@ class DenseGAN(object):
         self.epochs = epochs
         self.verbose = verbose
         self.report_frequency = report_frequency
+        self.classifier = classifier
         self.generator = None
         self.discriminator = None
         self.gen_disc = None

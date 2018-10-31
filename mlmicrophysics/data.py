@@ -273,9 +273,14 @@ def subset_data_by_date(data, train_date_start=0, train_date_end=1, test_date_st
     return train_data, validation_data, test_data
 
 
-def log10_transform(x, eps=1e-18):
+def log10_transform(x, eps=1e-15):
     return np.log10(np.maximum(x, eps))
 
 
-def neg_log10_transform(x, eps=1e-18):
+def neg_log10_transform(x, eps=1e-15):
     return np.log10(np.maximum(-x, eps))
+
+
+def zero_transform(x, eps=1e-15):
+    return np.zeros(x.shape, dtype=np.float32)
+
