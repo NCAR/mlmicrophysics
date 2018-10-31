@@ -1,12 +1,11 @@
 import numpy as np
 import yaml
-from dask.distributed import Client, LocalCluster, as_completed, wait
+from dask.distributed import Client, LocalCluster, as_completed
 import argparse
 from os.path import exists, join
 from os import makedirs
 from mlmicrophysics.data import subset_data_files_by_date, log10_transform, neg_log10_transform, zero_transform
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from mlmicrophysics.models import DenseNeuralNetwork, DenseGAN
 from sklearn.preprocessing import StandardScaler, RobustScaler, MaxAbsScaler, MinMaxScaler
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, accuracy_score
 from mlmicrophysics.metrics import hellinger_distance, heidke_skill_score, peirce_skill_score
@@ -126,14 +125,15 @@ def main():
     val_output_labels_link = client.scatter(val_output_labels)
     val_scaled_output_link = client.scatter(val_scaled_output)
     submissions = []
-    rs = np.random.RandomState(config["random_seed"])
     if not exists(config["out_path"]):
         makedirs(config["out_path"])
     for class_model_name, class_model_params in config["classifier_models"].items():
-        class_model_config_generator = parse_model_config_params(class_model_params,
-                                                                 config["num_param_samples"],
-                                                                 rs)
+
         for reg_model_name, reg_model_params in config["regressor_models"].items():
+            rs = np.random.RandomState(config["random_seed"])
+            class_model_config_generator = parse_model_config_params(class_model_params,
+                                                                     config["num_param_samples"],
+                                                                     rs)
             reg_model_config_generator = parse_model_config_params(reg_model_params,
                                                                    config["num_param_samples"],
                                                                    rs)
@@ -288,12 +288,8 @@ def validate_model_configuration(classifier_model_name, classifier_model_config,
     Returns:
 
     """
+    from mlmicrophysics.models import DenseNeuralNetwork, DenseGAN
     import keras.backend as K
-    model_classes = {"RandomForestRegressor": RandomForestRegressor,
-                     "RandomForestClassifier": RandomForestClassifier,
-                     "DenseNeuralNetwork": DenseNeuralNetwork,
-                     "DenseGAN": DenseGAN}
-    
     metrics = {"mse": mean_squared_error,
                "mae": mean_absolute_error,
                "r2": r2_score,
@@ -304,6 +300,10 @@ def validate_model_configuration(classifier_model_name, classifier_model_config,
     sess = K.tf.Session(config=K.tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1))
     K.set_session(sess)
     with sess.as_default():
+        model_classes = {"RandomForestRegressor": RandomForestRegressor,
+                         "RandomForestClassifier": RandomForestClassifier,
+                         "DenseNeuralNetwork": DenseNeuralNetwork,
+                         "DenseGAN": DenseGAN}
         classifier_models = {}
         regressor_models = {}
         output_label_preds = pd.DataFrame(0, index=val_labels.index, columns=val_labels.columns,
@@ -322,7 +322,7 @@ def validate_model_configuration(classifier_model_name, classifier_model_config,
             for unique_label in unique_labels:
                 for metric in regressor_metric_list:
                     output_metric_columns.append(f"{output_col}_{unique_label}_{metric}")
-        output_metrics = pd.Series(index=output_metric_columns, name=config_index, dtype=float)
+        output_metrics = pd.Series(index=output_metric_columns, name=config_index, dtype=np.float32)
         for output_col in train_scaled_output.columns:
             print(output_col)
             unique_labels = np.unique(train_labels[output_col])
@@ -351,9 +351,10 @@ def validate_model_configuration(classifier_model_name, classifier_model_config,
                     regressor_models[output_col][label].fit(train_scaled_input.loc[train_labels[output_col] == label],
                                                             train_scaled_output.loc[train_labels[output_col] == label,
                                                                                     output_col])
-                    output_preds.loc[output_label_preds[output_col] == label,
-                                     output_col] = regressor_models[output_col][
-                        label].predict(val_scaled_input.loc[output_label_preds[output_col] == label])
+                    if np.count_nonzero(output_label_preds[output_col] == label) > 0:
+                        output_preds.loc[output_label_preds[output_col] == label,
+                                         output_col] = regressor_models[output_col][
+                            label].predict(val_scaled_input.loc[output_label_preds[output_col] == label])
                     output_regressor_preds.loc[val_labels[output_col] == label,
                                                output_col] = regressor_models[output_col][
                         label].predict(val_scaled_input.loc[val_labels[output_col] == label])
@@ -363,7 +364,6 @@ def validate_model_configuration(classifier_model_name, classifier_model_config,
             for metric in regressor_metric_list:
                 output_metrics[output_col + "_" + metric] = metrics[metric](val_scaled_output[output_col],
                                                                             output_preds[output_col])
-    sess.close()
     return output_metrics
 
 

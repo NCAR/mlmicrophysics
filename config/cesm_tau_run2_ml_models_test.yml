@@ -38,19 +38,19 @@ output_transforms:
     1: [">", 0, "log10_transform", "StandardScaler"]
 classifier_models:
   DenseNeuralNetwork:
-    hidden_layers: ["randint", 2, 6]
+    hidden_layers: ["randint", 2, 5]
     hidden_neurons: ["randint", 4, 50]
     inputs: [9]
     activation: ["relu", "selu", "tanh"]
     output_activation: ["softmax"]
     optimizer: ["adam"]
     loss: ["categorical_crossentropy"]
-    lr: ["uniform", 0.00001, 0.1]
+    lr: ["uniform", 0.0001, 0.01]
     batch_size: ["randint", 32, 512]
-    use_noise: [0, 1]
-    noise_sd: ["expon", 0, 0.01]
-    epochs: [20]
-    verbose: [2]
+    use_noise: [1]
+    noise_sd: ["expon", 0.001, 0.01]
+    epochs: [10]
+    verbose: [0]
   RandomForestClassifier:
     n_estimators: ["randint", 50, 100]
     min_samples_leaf: ["randint", 1, 100]
@@ -58,7 +58,7 @@ classifier_models:
 
 regressor_models:
   DenseNeuralNetwork:
-    hidden_layers: ["randint", 2, 6]
+    hidden_layers: ["randint", 2, 5]
     hidden_neurons: ["randint", 4, 50]
     inputs: [9]
     outputs: [1]
@@ -67,11 +67,11 @@ regressor_models:
     optimizer: ["adam"]
     loss: ["mse"]
     use_noise: [0, 1]
-    noise_sd: ["expon", 0, 0.01]
-    lr: ["uniform", 0.00001, 0.1]
+    noise_sd: ["expon", 0.001, 0.01]
+    lr: ["uniform", 0.0001, 0.01]
     batch_size: ["randint", 32, 512]
-    epochs: [20]
-    verbose: [2]
+    epochs: [10vi]
+    verbose: [0]
   RandomForestRegressor:
     n_estimators: ["randint", 50, 100]
     min_samples_leaf: ["randint", 1, 100]

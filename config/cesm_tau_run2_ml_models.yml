@@ -8,10 +8,10 @@ subset_data:
   test_date_end: 17466
   validation_frequency: 3
 random_seed: 328942
-subsample: 0.1
+subsample: 0.005
 model_path: /glade/scratch/dgagne/cam_mp_run2_models/
 classifier_metrics: ["acc", "pss", "hss"]
-regressor_metrics: ["mse", "mae", "r2"]
+regressor_metrics: ["mse", "mae", "r2", "hellinger"]
 input_cols: ["pressure", "temperature", "RHO_CLUBB_lev", "RHO_CLUBB_top", "RHO_CLUBB_bottom",
              "QC_TAU_in", "NC_TAU_in", "QR_TAU_in", "NR_TAU_in",]
 output_cols: ["qctend_TAU", "qrtend_TAU", "nctend_TAU", "nrtend_TAU"]
@@ -45,11 +45,11 @@ classifier_models:
     output_activation: ["softmax"]
     optimizer: ["adam"]
     loss: ["categorical_crossentropy"]
-    lr: ["uniform", 0.00001, 0.1]
-    batch_size: ["randint", 32, 2048]
+    lr: ["uniform", 0.0001, 0.01]
+    batch_size: ["randint", 32, 1024]
     use_noise: [0, 1]
     noise_sd: ["expon", 0, 0.01]
-    epochs: [20]
+    epochs: ["randint", 10, 30]
   RandomForestClassifier:
     n_estimators: ["randint", 50, 500]
     min_samples_leaf: ["randint", 1, 100]
@@ -66,9 +66,9 @@ regressor_models:
     loss: ["mse"]
     use_noise: [0, 1]
     noise_sd: ["expon", 0, 0.01]
-    lr: ["uniform", 0.00001, 0.1]
+    lr: ["uniform", 0.0001, 0.01]
     batch_size: ["randint", 32, 2048]
-    epochs: [20]
+    epochs: ["randint", 10, 30]
   RandomForestRegressor:
     n_estimators: ["randint", 50, 500]
     min_samples_leaf: ["randint", 1, 100]
