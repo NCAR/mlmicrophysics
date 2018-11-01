@@ -336,8 +336,8 @@ def validate_model_configuration(classifier_model_name, classifier_model_config,
                 classifier_models[output_col].fit(train_scaled_input, train_labels[output_col])
                 output_label_preds.loc[:, output_col] = classifier_models[output_col].predict(val_scaled_input)
                 for metric in classifier_metric_list:
-                    output_metrics[output_col + "_" + metric] = metrics[metric](val_labels[output_col],
-                                                                                output_label_preds[output_col])
+                    output_metrics[output_col + "_" + metric] = metrics[metric](val_labels[output_col].values,
+                                                                                output_label_preds[output_col].values)
             else:
                 output_label_preds.loc[:, output_col] = unique_labels[0]
             regressor_models[output_col] = {}
@@ -359,11 +359,11 @@ def validate_model_configuration(classifier_model_name, classifier_model_config,
                                                output_col] = regressor_models[output_col][
                         label].predict(val_scaled_input.loc[val_labels[output_col] == label])
                     for metric in regressor_metric_list:
-                        output_metrics[f"{output_col}_{label}_{metric}"] = metrics[metric](val_scaled_output.loc[val_labels[output_col] == label, output_col],
-                                                                                           output_regressor_preds.loc[val_labels[output_col] == label, output_col])
+                        output_metrics[f"{output_col}_{label}_{metric}"] = metrics[metric](val_scaled_output.loc[val_labels[output_col] == label, output_col].values,
+                                                                                           output_regressor_preds.loc[val_labels[output_col] == label, output_col].values)
             for metric in regressor_metric_list:
-                output_metrics[output_col + "_" + metric] = metrics[metric](val_scaled_output[output_col],
-                                                                            output_preds[output_col])
+                output_metrics[output_col + "_" + metric] = metrics[metric](val_scaled_output[output_col].values,
+                                                                            output_preds[output_col].values)
     return output_metrics
 
 

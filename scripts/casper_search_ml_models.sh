@@ -8,10 +8,9 @@
 #SBATCH -p dav
 #SBATCH -C casper
 #SBATCH -o search_ml.log
-#SBATCH --reservation anemone
 module purge
 export HOME="/glade/u/home/dgagne"
-export PATH="/glade/u/home/dgagne/miniconda3/envs/deep/bin:$PATH"
+export PATH="/glade/u/home/dgagne/miniconda3/envs/ml/bin:$PATH"
 cd $HOME/mlmicrophysics/scripts
 echo `which python`
-python -u search_ml_model_params.py ../config/cesm_tau_run2_ml_models.yml -p 16 >& ml_search_casper.log
+python -u search_ml_model_params.py ../config/cesm_tau_run2_ml_models.yml -p 2 >& ml_search_casper.log
