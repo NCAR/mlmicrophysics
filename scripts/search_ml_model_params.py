@@ -178,7 +178,8 @@ def main():
                     result_count += 1
                 else:
                     tb = out.traceback()
-                    traceback.format_tb(tb)
+                    for line in traceback.format_tb(tb):
+                        print(line)
             del submissions[:]
     client.close()
     cluster.close()

@@ -23,7 +23,7 @@ def kde_sampled_pdf(data, sample_points, bandwidth=1.0, kernel="gaussian"):
         input_data = data
     kde = KernelDensity(bandwidth=bandwidth, kernel=kernel)
     kde.fit(input_data)
-    return np.exp(kde.score_samples(sample_points))
+    return np.exp(kde.score_samples(sample_points.reshape(-1, 1)))
 
 
 def hellinger_distance(y_true, y_pred, sample_points=np.linspace(-3, 3, 100), bandwidth=1.0, kernel="gaussian"):

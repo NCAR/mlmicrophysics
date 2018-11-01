@@ -15,7 +15,7 @@ regressor_metrics: ["mse", "mae", "r2", "hellinger"]
 input_cols: ["pressure", "temperature", "RHO_CLUBB_lev", "RHO_CLUBB_top", "RHO_CLUBB_bottom",
              "QC_TAU_in", "NC_TAU_in", "QR_TAU_in", "NR_TAU_in",]
 output_cols: ["qctend_TAU", "qrtend_TAU", "nctend_TAU", "nrtend_TAU"]
-num_param_samples: 100
+num_param_samples: 136
 input_transforms:
   QC_TAU_in: log10_transform
   NC_TAU_in: log10_transform
