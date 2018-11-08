@@ -13,4 +13,4 @@ export HOME="/glade/u/home/dgagne"
 export PATH="/glade/u/home/dgagne/miniconda3/envs/ml/bin:$PATH"
 cd $HOME/mlmicrophysics/scripts
 echo `which python`
-python -u search_ml_model_params.py ../config/cesm_tau_run2_ml_models.yml -p 2 >& ml_search_casper.log
+python -u search_ml_model_params.py ../config/cesm_tau_run2_ml_models.yml -p 34 >& ml_search_casper.log
