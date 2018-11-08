@@ -1,7 +1,6 @@
 from multiprocessing import Pool
 import numpy as np
 import pandas as pd
-from numba import jit
 import traceback
 import matplotlib.pyplot as plt
 
@@ -30,6 +29,7 @@ def feature_importance(x, y, model, metric_function, x_columns=None, permutation
         x_columns = np.array(x_columns)
     predictions = model.predict(x)
     score = metric_function(y, predictions)
+    print(score)
     np.random.seed(seed=seed)
     perm_matrix = np.zeros((x_columns.shape[0], permutations))
 
@@ -39,6 +39,7 @@ def feature_importance(x, y, model, metric_function, x_columns=None, permutation
         pool = Pool(processes)
         for c in range(len(x_columns)):
             for p in range(permutations):
+                print(c, p)
                 pool.apply_async(feature_importance_column,
                                  (x, y, c, p, model, metric_function, np.random.randint(0, 100000)),
                                  callback=update_perm_matrix)
@@ -54,7 +55,6 @@ def feature_importance(x, y, model, metric_function, x_columns=None, permutation
     return pd.DataFrame(diff_matrix, index=x_columns, columns=np.arange(permutations))
 
 
-@jit(nopython=True)
 def feature_importance_column(x, y, column_index, permutation, model, metric_function, seed):
     """
     Calculate the permutation feature importance score for a single input column. It is the error score on
@@ -86,7 +86,6 @@ def feature_importance_column(x, y, column_index, permutation, model, metric_fun
         raise e
 
 
-@jit(nopython=True)
 def partial_dependence_2d(x, y_pred, var_1_index, var_2_index, var_1_bins, var_2_bins, dependence_function=np.mean):
     """
     For a given set of 2 input values, calculate a summary statistic based on all of the examples that fall within
@@ -124,7 +123,6 @@ def partial_dependence_2d(x, y_pred, var_1_index, var_2_index, var_1_bins, var_2
     return dependence_matrix, dependence_counts
 
 
-@jit(nopython=True)
 def partial_dependence_1d(x, y_pred, var_index, var_bins, dependence_function=np.mean):
     """
     Calculate a partial dependence curve for a single variable.
