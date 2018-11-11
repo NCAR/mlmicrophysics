@@ -1,5 +1,5 @@
 data_path: /glade/scratch/dgagne/cam_mp_files_run2_csv/
-out_path: /glade/scratch/dgagne/cam_mp_run2_ml_val/
+out_path: /glade/scratch/dgagne/cam_mp_run2_ml_val_1000/
 data_end: ".csv"
 subset_data:
   train_date_start: 0
@@ -8,14 +8,14 @@ subset_data:
   test_date_end: 17466
   validation_frequency: 3
 random_seed: 328942
-subsample: 0.005
+subsample: 0.01
 model_path: /glade/scratch/dgagne/cam_mp_run2_models/
 classifier_metrics: ["acc", "pss", "hss"]
 regressor_metrics: ["mse", "mae", "r2", "hellinger"]
 input_cols: ["pressure", "temperature", "RHO_CLUBB_lev", "RHO_CLUBB_top", "RHO_CLUBB_bottom",
              "QC_TAU_in", "NC_TAU_in", "QR_TAU_in", "NR_TAU_in",]
 output_cols: ["qctend_TAU", "qrtend_TAU", "nctend_TAU", "nrtend_TAU"]
-num_param_samples: 136
+num_param_samples: 1000
 input_transforms:
   QC_TAU_in: log10_transform
   NC_TAU_in: log10_transform
@@ -38,8 +38,8 @@ output_transforms:
     1: [">", 0, "log10_transform", "StandardScaler"]
 classifier_models:
   DenseNeuralNetwork:
-    hidden_layers: ["randint", 2, 8]
-    hidden_neurons: ["randint", 4, 100]
+    hidden_layers: ["randint", 1, 9]
+    hidden_neurons: ["randint", 4, 50]
     inputs: [9]
     activation: ["relu", "selu", "tanh"]
     output_activation: ["softmax"]
@@ -48,16 +48,17 @@ classifier_models:
     lr: ["uniform", 0.0001, 0.01]
     batch_size: ["randint", 32, 1024]
     use_noise: [0, 1]
-    noise_sd: ["expon", 0, 0.01]
-    epochs: ["randint", 10, 30]
+    noise_sd: ["uniform", 0.0001, 0.01]
+    epochs: [15]
   RandomForestClassifier:
     n_estimators: ["randint", 50, 500]
     min_samples_leaf: ["randint", 1, 100]
+    max_features: ["randint", 2, 9]
     class_weight: ["balanced", "balanced_subsample"]
 regressor_models:
   DenseNeuralNetwork:
-    hidden_layers: ["randint", 2, 8]
-    hidden_neurons: ["randint", 4, 100]
+    hidden_layers: ["randint", 1, 9]
+    hidden_neurons: ["randint", 4, 50]
     inputs: [9]
     outputs: [1]
     activation: ["relu", "selu", "tanh"]
@@ -65,10 +66,11 @@ regressor_models:
     optimizer: ["adam"]
     loss: ["mse"]
     use_noise: [0, 1]
-    noise_sd: ["expon", 0, 0.01]
+    noise_sd: ["uniform", 0.0001, 0.01]
     lr: ["uniform", 0.0001, 0.01]
-    batch_size: ["randint", 32, 2048]
-    epochs: ["randint", 10, 30]
+    batch_size: ["randint", 32, 1024]
+    epochs: [15]
   RandomForestRegressor:
     n_estimators: ["randint", 50, 500]
+    max_features: ["randint", 2, 9]
     min_samples_leaf: ["randint", 1, 100]
