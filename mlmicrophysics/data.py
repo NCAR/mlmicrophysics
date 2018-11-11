@@ -3,7 +3,8 @@ import pandas as pd
 import xarray as xr
 from glob import glob
 from os.path import join, exists
-from dask import delayed
+from sklearn.preprocessing import StandardScaler, RobustScaler, MaxAbsScaler, MinMaxScaler
+from operator import lt, le, eq, ne, ge, gt
 
 
 def load_cam_output(path, file_start="TAU_run1.cam.h1", file_end="nc"):
@@ -271,6 +272,133 @@ def subset_data_by_date(data, train_date_start=0, train_date_end=1, test_date_st
     train_data = data.loc[np.isin(data[subset_col].values, train_dates)]
     validation_data = data.loc[np.isin(data[subset_col].values, validation_dates)]
     return train_data, validation_data, test_data
+
+
+def categorize_output_values(output_values, output_transforms, output_scalers=None):
+    """
+    Transform and rescale output values based on specified transforms and scaling functions.
+
+    Args:
+        output_values:
+        output_transforms:
+        output_scalers:
+
+    Returns:
+
+    """
+    ops = {"<": lt, "<=": le, "==": eq, "!=": ne, ">=": ge, ">": gt}
+    scalers = {"MinMaxScaler": MinMaxScaler,
+               "MaxAbsScaler": MaxAbsScaler,
+               "StandardScaler": StandardScaler,
+               "RobustScaler": RobustScaler}
+    transforms = {"log10_transform": log10_transform,
+                  "neg_log10_transform": neg_log10_transform,
+                  "zero_transform": zero_transform}
+    labels = np.zeros(output_values.shape, dtype=int)
+    transformed_outputs = np.zeros(output_values.shape)
+    scaled_outputs = np.zeros(output_values.shape)
+    if output_scalers is None:
+        output_scalers = {}
+    for label, comparison in output_transforms.items():
+        class_indices = ops[comparison[0]](output_values, float(comparison[1]))
+        labels[class_indices] = label
+        transformed_outputs[class_indices] = transforms[comparison[2]](output_values[class_indices],
+                                                                       eps=float(comparison[1]))
+        if comparison[3] != "None":
+            if label not in list(output_scalers.keys()):
+                output_scalers[label] = scalers[comparison[3]]()
+                scaled_outputs[class_indices] = output_scalers[label].fit_transform(
+                    transformed_outputs[class_indices].reshape(-1, 1)).ravel()
+            else:
+                print(transformed_outputs[class_indices].shape)
+                scaled_outputs[class_indices] = output_scalers[label].transform(
+                    transformed_outputs[class_indices].reshape(-1, 1)).ravel()
+        else:
+            output_scalers[label] = None
+    return labels, transformed_outputs, scaled_outputs, output_scalers
+
+
+def assemble_data_files(files, input_cols, output_cols, input_transforms, output_transforms,
+                        input_scaler, output_scalers=None, train=True, subsample=1,
+                        filter_comparison=("NC_TAU_in", ">=", 10)):
+    """
+
+    Args:
+        files:
+        input_cols:
+        output_cols:
+        input_transforms:
+        output_transforms:
+        input_scaler:
+        output_scalers:
+        train:
+        subsample:
+        filter_comparison:
+
+    Returns:
+
+    """
+    all_input_data = []
+    all_output_data = []
+    transforms = {"log10_transform": log10_transform,
+                  "neg_log10_transform": neg_log10_transform,
+                  "zero_transform": zero_transform}
+    ops = {"<": lt, "<=": le, "==": eq, "!=": ne, ">=": ge, ">": gt}
+
+    for filename in files:
+        print(filename)
+        data = pd.read_csv(filename, index_col="Index")
+        data = data.loc[ops[filter_comparison[1]](data[filter_comparison[0]], filter_comparison[2])]
+        data.reset_index(inplace=True)
+        if subsample < 1:
+            sample_index = int(np.round(data.shape[0] * subsample))
+            sample_indices = np.sort(np.random.permutation(np.arange(data.shape[0]))[:sample_index])
+        else:
+            sample_indices = np.arange(data.shape[0])
+        all_input_data.append(data.loc[sample_indices, input_cols])
+        all_output_data.append(data.loc[sample_indices, output_cols])
+        del data
+    print("Combining data")
+    combined_input_data = pd.concat(all_input_data, ignore_index=True)
+    combined_output_data = pd.concat(all_output_data, ignore_index=True)
+    print("Combined Data Size", combined_input_data.shape)
+    del all_input_data[:]
+    del all_output_data[:]
+    print("Transforming data")
+    for var, transform_name in input_transforms.items():
+        combined_input_data.loc[:, var] = transforms[transform_name](combined_input_data[var])
+    transformed_output_data = pd.DataFrame(0,
+                                           columns=combined_output_data.columns,
+                                           index=combined_output_data.index,
+                                           dtype=np.float32)
+    scaled_output_data = pd.DataFrame(0,
+                                      columns=combined_output_data.columns,
+                                      index=combined_output_data.index,
+                                      dtype=np.float32)
+    output_labels = pd.DataFrame(0,
+                                 columns=combined_output_data.columns,
+                                 index=combined_output_data.index,
+                                 dtype=np.int32)
+    if output_scalers is None:
+        output_scalers = {}
+    for output_var in output_cols:
+        if output_var not in output_scalers:
+            output_scalers[output_var] = None
+        output_labels.loc[:, output_var],\
+            transformed_output_data.loc[:, output_var],\
+            scaled_output_data.loc[:, output_var],\
+            output_scalers[output_var] = categorize_output_values(combined_output_data.loc[:,
+                                                                  output_var].values.reshape(-1, 1),
+                                                                  output_transforms[output_var],
+                                                                  output_scalers=output_scalers[output_var])
+    print("Scaling data")
+    if train:
+        scaled_input_data = pd.DataFrame(input_scaler.fit_transform(combined_input_data),
+                                         columns=combined_input_data.columns)
+    else:
+        scaled_input_data = pd.DataFrame(input_scaler.transform(combined_input_data),
+                                         columns=combined_input_data.columns)
+    return scaled_input_data, output_labels, transformed_output_data, scaled_output_data, output_scalers
 
 
 def log10_transform(x, eps=1e-15):
