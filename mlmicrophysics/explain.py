@@ -110,13 +110,31 @@ def partial_dependence_1d(x, model, var_index, var_vals):
 
 
 def partial_dependence_2d(x, model, var_1_index, var_1_vals, var_2_index, var_2_vals):
-    pd_grid = np.zeros((var_1_vals.size, var_2_vals.size))
+    """
+    Calculate the partial dependence values on a 2D grid where the columns correspond to var 1
+    and the rows correspond the var 2.
+    Partial dependence fixes the value of 1 or 2 variables for all examples, feeds them through
+    the machine learning model, and calculates the mean of the resulting predictions.
+
+    Args:
+        x: Input training data in a numpy array
+        model: scikit-learn style model object being evaluated
+        var_1_index: Column index of first variable
+        var_1_vals: Values of variable 1 to be evaluated for partial dependence.
+            Values should be monotonic
+        var_2_index: Column index of the second variable
+        var_2_vals: Values of variable 2 to be evaluated for partial dependence
+
+    Returns:
+        pd_grid, array of shape (var_2_vals.size, var_1_vals.size) containing partial dependence values
+    """
+    pd_grid = np.zeros((var_2_vals.size, var_1_vals.size))
     x_copy = np.copy(x)
-    for v1, var_1_val in enumerate(var_1_vals):
-        x_copy[:, var_1_index] = var_1_val
-        for v2, var_2_val in enumerate(var_2_vals):
-            x_copy[:, var_2_index] = var_2_val
-            pd_grid[v1, v2] = model.predict(x_copy).mean()
+    for v2, var_2_val in enumerate(var_2_vals):
+        x_copy[:, var_2_index] = var_2_val
+        for v1, var_1_val in enumerate(var_1_vals):
+            x_copy[:, var_1_index] = var_1_val
+            pd_grid[v2, v1] = model.predict(x_copy).mean()
     return pd_grid
 
 
@@ -186,33 +204,28 @@ def conditional_input_prediction_1d(x, y_pred, var_index, var_bins, dependence_f
 def partial_dependence_plot_2d(var_1_vals, var_2_vals, dependence_matrix,
                                var_1_name, var_2_name, output_file, dpi=300,
                                figsize=(8, 8), cmap="viridis", label_fontsize=14,
-                               dependence_title="Partial Dependence"):
+                               title="Partial Dependence"):
     """
     Plot 2D partial dependence field and associated frequencies.
 
     Args:
-        var_1_bins:
-        var_2_bins:
-        dependence_matrix:
-        dependence_counts:
-        var_1_name:
-        var_2_name:
-        output_file:
-        dpi:
-        figsize:
-        cmap:
-        label_fontsize:
-        dependence_title:
-        frequency_title:
-
-    Returns:
-
+        var_1_vals: Array of values indexed for variable 1
+        var_2_vaks: Array of values indexed for variable 2
+        dependence_matrix: 2D array of partial dependence values
+        var_1_name: Name of variable 1
+        var_2_name: Name of variable 2
+        output_file: Name of image file
+        dpi: number of dots per inch (default 300)
+        figsize: (width, height) of figure in inches
+        cmap: Colormap used
+        label_fontsize: Fontsize of x and y labels
+        title: Title of figure
     """
     plt.figure(figsize=figsize)
     plt.pcolormesh(var_1_vals, var_2_vals, dependence_matrix, cmap=cmap)
     plt.xlabel(var_1_name, fontsize=label_fontsize)
     plt.ylabel(var_2_name, fontsize=label_fontsize)
-    plt.title(dependence_title, fontsize=label_fontsize + 2)
+    plt.title(title, fontsize=label_fontsize + 2)
     plt.colorbar()
     plt.savefig(output_file, dpi=dpi, bbox_inches="tight")
     plt.close()
