@@ -1,9 +1,9 @@
 from multiprocessing import Pool
 import numpy as np
 import pandas as pd
-from numba import jit
 import traceback
 import matplotlib.pyplot as plt
+from copy import deepcopy
 
 
 def feature_importance(x, y, model, metric_function, x_columns=None, permutations=30, processes=1, seed=8272):
@@ -30,32 +30,30 @@ def feature_importance(x, y, model, metric_function, x_columns=None, permutation
         x_columns = np.array(x_columns)
     predictions = model.predict(x)
     score = metric_function(y, predictions)
+    print(score)
     np.random.seed(seed=seed)
     perm_matrix = np.zeros((x_columns.shape[0], permutations))
 
     def update_perm_matrix(result):
-        perm_matrix[result[0], result[1]] = result[2]
+        perm_matrix[result[0]] = result[1]
     if processes > 1:
         pool = Pool(processes)
         for c in range(len(x_columns)):
-            for p in range(permutations):
-                pool.apply_async(feature_importance_column,
-                                 (x, y, c, p, model, metric_function, np.random.randint(0, 100000)),
-                                 callback=update_perm_matrix)
+            pool.apply_async(feature_importance_column,
+                             (x, y, c, permutations, deepcopy(model), metric_function, np.random.randint(0, 100000)),
+                              callback=update_perm_matrix)
         pool.close()
         pool.join()
     else:
         for c in range(len(x_columns)):
-            for p in range(permutations):
-                result = feature_importance_column(x, y, c, p, model,
-                                                   metric_function, np.random.randint(0, 100000))
-                update_perm_matrix(result)
+            result = feature_importance_column(x, y, c, permutations, model,
+                                               metric_function, np.random.randint(0, 100000))
+            update_perm_matrix(result)
     diff_matrix = score - perm_matrix
     return pd.DataFrame(diff_matrix, index=x_columns, columns=np.arange(permutations))
 
 
-@jit(nopython=True)
-def feature_importance_column(x, y, column_index, permutation, model, metric_function, seed):
+def feature_importance_column(x, y, column_index, permutations, model, metric_function, seed):
     """
     Calculate the permutation feature importance score for a single input column. It is the error score on
     a given set of data after the values in one column have been shuffled among the different examples.
@@ -64,7 +62,7 @@ def feature_importance_column(x, y, column_index, permutation, model, metric_fun
         x: ndarray of dimension (n_examples, n_features) that contains the input data for the ML model.
         y: ndarray of dimension (n_examples, ) that contains the true target values.
         column_index: Index of the x column being permuted
-        permutation: Index of the permutation value. Used for properly placing the score after completion.
+        permutations: Number of permutations run to calculate importance score distribution
         model: machine learning model object in scikit-learn format (contains fit and predict methods).
         metric_function: scoring function with the input format (y_true, y_predicted) to match scikit-learn.
         seed (int): random seed.
@@ -73,21 +71,74 @@ def feature_importance_column(x, y, column_index, permutation, model, metric_fun
         column_index, permutation, perm_score
     """
     try:
-        np.random.seed(seed)
+        rs = np.random.RandomState(seed=seed)
         perm_indices = np.arange(x.shape[0])
-        np.random.shuffle(perm_indices)
+        perm_scores = np.zeros(permutations)
         x_perm = np.copy(x)
-        x_perm[:, column_index] = x[perm_indices, column_index]
-        perm_pred = model.predict(x_perm)
-        perm_score = metric_function(y, perm_pred)
-        return column_index, permutation, perm_score
+        for p in range(permutations):
+            print(column_index, p)
+            rs.shuffle(perm_indices)
+            x_perm[:, column_index] = x[perm_indices, column_index]
+            perm_pred = model.predict(x_perm)
+            perm_scores[p] = metric_function(y, perm_pred)
+        return column_index, perm_scores
     except Exception as e:
         print(traceback.format_exc())
         raise e
 
 
-@jit(nopython=True)
-def partial_dependence_2d(x, y_pred, var_1_index, var_2_index, var_1_bins, var_2_bins, dependence_function=np.mean):
+def partial_dependence_1d(x, model, var_index, var_vals):
+    """
+    Calculate how the mean prediction of an ML model varies if one variable's value is fixed across all input
+    examples.
+
+    Args:
+        x: array of input variables
+        model: scikit-learn style model object
+        var_index: column index of the variable being investigated
+        var_vals: values of the input variable that are fixed.
+
+    Returns:
+        Array of partial dependence values.
+    """
+    partial_dependence = np.zeros(var_vals.shape)
+    x_copy = np.copy(x)
+    for v, var_val in enumerate(var_vals):
+        x_copy[:, var_index] = var_val
+        partial_dependence[v] = model.predict(x_copy).mean()
+    return partial_dependence
+
+
+def partial_dependence_2d(x, model, var_1_index, var_1_vals, var_2_index, var_2_vals):
+    """
+    Calculate the partial dependence values on a 2D grid where the columns correspond to var 1
+    and the rows correspond the var 2.
+    Partial dependence fixes the value of 1 or 2 variables for all examples, feeds them through
+    the machine learning model, and calculates the mean of the resulting predictions.
+
+    Args:
+        x: Input training data in a numpy array
+        model: scikit-learn style model object being evaluated
+        var_1_index: Column index of first variable
+        var_1_vals: Values of variable 1 to be evaluated for partial dependence.
+            Values should be monotonic
+        var_2_index: Column index of the second variable
+        var_2_vals: Values of variable 2 to be evaluated for partial dependence
+
+    Returns:
+        pd_grid, array of shape (var_2_vals.size, var_1_vals.size) containing partial dependence values
+    """
+    pd_grid = np.zeros((var_2_vals.size, var_1_vals.size))
+    x_copy = np.copy(x)
+    for v2, var_2_val in enumerate(var_2_vals):
+        x_copy[:, var_2_index] = var_2_val
+        for v1, var_1_val in enumerate(var_1_vals):
+            x_copy[:, var_1_index] = var_1_val
+            pd_grid[v2, v1] = model.predict(x_copy).mean()
+    return pd_grid
+
+
+def conditional_input_prediction_2d(x, y_pred, var_1_index, var_2_index, var_1_bins, var_2_bins, dependence_function=np.mean):
     """
     For a given set of 2 input values, calculate a summary statistic based on all of the examples that fall within
     each binned region of the input data space. The goal is to show how the model predictions vary on average as
@@ -124,8 +175,7 @@ def partial_dependence_2d(x, y_pred, var_1_index, var_2_index, var_1_bins, var_2
     return dependence_matrix, dependence_counts
 
 
-@jit(nopython=True)
-def partial_dependence_1d(x, y_pred, var_index, var_bins, dependence_function=np.mean):
+def conditional_input_prediction_1d(x, y_pred, var_index, var_bins, dependence_function=np.mean):
     """
     Calculate a partial dependence curve for a single variable.
 
@@ -151,43 +201,31 @@ def partial_dependence_1d(x, y_pred, var_index, var_bins, dependence_function=np
     return dependence_matrix, dependence_counts
 
 
-def partial_dependence_plot_2d(var_1_bins, var_2_bins, dependence_matrix, dependence_counts,
+def partial_dependence_plot_2d(var_1_vals, var_2_vals, dependence_matrix,
                                var_1_name, var_2_name, output_file, dpi=300,
-                               figsize=(12, 6), cmap="viridis", label_fontsize=14,
-                               dependence_title="Partial Dependence", frequency_title="Partial Frequencies"):
+                               figsize=(8, 8), cmap="viridis", label_fontsize=14,
+                               title="Partial Dependence"):
     """
     Plot 2D partial dependence field and associated frequencies.
 
     Args:
-        var_1_bins:
-        var_2_bins:
-        dependence_matrix:
-        dependence_counts:
-        var_1_name:
-        var_2_name:
-        output_file:
-        dpi:
-        figsize:
-        cmap:
-        label_fontsize:
-        dependence_title:
-        frequency_title:
-
-    Returns:
-
+        var_1_vals: Array of values indexed for variable 1
+        var_2_vaks: Array of values indexed for variable 2
+        dependence_matrix: 2D array of partial dependence values
+        var_1_name: Name of variable 1
+        var_2_name: Name of variable 2
+        output_file: Name of image file
+        dpi: number of dots per inch (default 300)
+        figsize: (width, height) of figure in inches
+        cmap: Colormap used
+        label_fontsize: Fontsize of x and y labels
+        title: Title of figure
     """
     plt.figure(figsize=figsize)
-    plt.subplot(1, 2, 1)
-    plt.pcolormesh(var_1_bins, var_2_bins, dependence_matrix, cmap=cmap)
+    plt.pcolormesh(var_1_vals, var_2_vals, dependence_matrix, cmap=cmap)
     plt.xlabel(var_1_name, fontsize=label_fontsize)
     plt.ylabel(var_2_name, fontsize=label_fontsize)
-    plt.title(dependence_title, fontsize=label_fontsize + 2)
-    plt.colorbar()
-    plt.subplot(1, 2, 2)
-    plt.pcolormesh(var_1_bins, var_2_bins, dependence_counts, cmap=cmap)
-    plt.xlabel(var_1_name, fontsize=label_fontsize)
-    plt.ylabel(var_2_name, fontsize=label_fontsize)
-    plt.title(frequency_title, fontsize=label_fontsize + 2)
+    plt.title(title, fontsize=label_fontsize + 2)
     plt.colorbar()
     plt.savefig(output_file, dpi=dpi, bbox_inches="tight")
     plt.close()

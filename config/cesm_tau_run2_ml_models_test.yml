@@ -1,0 +1,77 @@
+data_path: /Users/dgagne/data/cam_mp_files_run2_csv/
+out_path: /Users/dgagne/data/cam_mp_run2_ml_val/
+data_end: ".csv"
+subset_data:
+  train_date_start: 0
+  train_date_end: 1000
+  test_date_start: 8856
+  test_date_end: 17466
+  validation_frequency: 3
+random_seed: 328942
+subsample: 0.01
+model_path: /Users/dgagne/cam_mp_run2_models/
+classifier_metrics: ["acc", "pss", "hss"]
+regressor_metrics: ["hellinger","mse", "mae", "r2"]
+input_cols: ["pressure", "temperature", "RHO_CLUBB_lev", "RHO_CLUBB_top", "RHO_CLUBB_bottom",
+             "QC_TAU_in", "NC_TAU_in", "QR_TAU_in", "NR_TAU_in",]
+output_cols: ["qctend_TAU", "qrtend_TAU", "nctend_TAU", "nrtend_TAU"]
+num_param_samples: 10
+input_transforms:
+  QC_TAU_in: log10_transform
+  NC_TAU_in: log10_transform
+  QR_TAU_in: log10_transform
+  NR_TAU_in: log10_transform
+input_scaler: "StandardScaler"
+output_transforms:
+  qctend_TAU:
+    0: [">=", -1e-15, "zero_transform", "None"]
+    1: ["<", -1e-15, "neg_log10_transform", "StandardScaler"]
+  qrtend_TAU:
+    0: ["<=", 1e-15, "zero_transform", "None"]
+    1: [">", 1e-15, "log10_transform", "StandardScaler"]
+  nctend_TAU:
+    0: [">=", -1e-15, "zero_transform", "None"]
+    1: ["<", -1e-15, "neg_log10_transform", "StandardScaler"]
+  nrtend_TAU:
+    -1: ["<", 0, "neg_log10_transform", "StandardScaler"]
+    0: ["==", 0, "zero_transform", "None"]
+    1: [">", 0, "log10_transform", "StandardScaler"]
+classifier_models:
+  DenseNeuralNetwork:
+    hidden_layers: ["randint", 2, 5]
+    hidden_neurons: ["randint", 4, 50]
+    inputs: [9]
+    activation: ["relu", "selu", "tanh"]
+    output_activation: ["softmax"]
+    optimizer: ["adam"]
+    loss: ["categorical_crossentropy"]
+    lr: ["uniform", 0.0001, 0.01]
+    batch_size: ["randint", 32, 512]
+    use_noise: [1]
+    noise_sd: ["expon", 0.001, 0.01]
+    epochs: [10]
+    verbose: [0]
+  RandomForestClassifier:
+    n_estimators: ["randint", 50, 100]
+    min_samples_leaf: ["randint", 1, 100]
+    class_weight: ["balanced", "balanced_subsample"]
+
+regressor_models:
+  DenseNeuralNetwork:
+    hidden_layers: ["randint", 2, 5]
+    hidden_neurons: ["randint", 4, 50]
+    inputs: [9]
+    outputs: [1]
+    activation: ["relu", "selu", "tanh"]
+    output_activation: ["linear"]
+    optimizer: ["adam"]
+    loss: ["mse"]
+    use_noise: [0, 1]
+    noise_sd: ["expon", 0.001, 0.01]
+    lr: ["uniform", 0.0001, 0.01]
+    batch_size: ["randint", 32, 512]
+    epochs: [10]
+    verbose: [0]
+  RandomForestRegressor:
+    n_estimators: ["randint", 50, 100]
+    min_samples_leaf: ["randint", 1, 100]
