@@ -4,8 +4,8 @@ from keras.regularizers import l2
 from keras.optimizers import Adam, SGD
 import keras.backend as K
 import numpy as np
-from scipy.stats import norm
 import pandas as pd
+
 
 class DenseNeuralNetwork(object):
     """
@@ -58,6 +58,10 @@ class DenseNeuralNetwork(object):
         self.verbose = verbose
         self.classifier = classifier
         self.y_labels = None
+        self.model = None
+        self.optimizer_obj = None
+
+    def build_neural_network(self):
         nn_input = Input(shape=(self.inputs,))
         nn_model = nn_input
         for h in range(self.hidden_layers):
@@ -68,11 +72,6 @@ class DenseNeuralNetwork(object):
             if self.use_noise:
                 nn_model = GaussianNoise(self.noise_sd)(nn_model)
         nn_model = Dense(self.outputs, activation=self.output_activation)(nn_model)
-        #nn_model_out = []
-        #for i in range(self.outputs):
-        #    nn_model_out.append(Dense(self.hidden_neurons, kernel_regularizer=l2(self.l2_weight))(nn_model))
-        #    nn_model_out[-1] = Activation(self.activation)(nn_model_out[-1])
-        #    nn_model_out[-1] = Dense(1, activation=output_activation)(nn_model_out[-1])
         self.model = Model(nn_input, nn_model)
         if self.optimizer == "adam":
             self.optimizer_obj = Adam(lr=self.lr, beta_1=self.adam_beta_1, beta_2=self.adam_beta_2, decay=self.decay)
@@ -81,6 +80,7 @@ class DenseNeuralNetwork(object):
         self.model.compile(optimizer=self.optimizer, loss=self.loss)
 
     def fit(self, x, y):
+        self.build_neural_network()
         if self.classifier:
             self.y_labels = np.unique(y)
             y_class = np.zeros((y.shape[0], self.y_labels.size), dtype=np.int32)
@@ -236,4 +236,5 @@ class DenseGAN(object):
     def predict(self, x):
         predictions = self.generator.predict(x)
         return predictions
+
 
