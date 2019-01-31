@@ -4,6 +4,8 @@ from keras.regularizers import l2
 from keras.optimizers import Adam, SGD
 import keras.backend as K
 import numpy as np
+import xarray as xr
+from netCDF4 import stringtochar
 import pandas as pd
 
 
@@ -62,16 +64,17 @@ class DenseNeuralNetwork(object):
         self.optimizer_obj = None
 
     def build_neural_network(self):
-        nn_input = Input(shape=(self.inputs,))
+        nn_input = Input(shape=(self.inputs,), name="input")
         nn_model = nn_input
         for h in range(self.hidden_layers):
-            nn_model = Dense(self.hidden_neurons, kernel_regularizer=l2(self.l2_weight))(nn_model)
-            nn_model = Activation(self.activation)(nn_model)
+            nn_model = Dense(self.hidden_neurons, activation=self.activation,
+                             kernel_regularizer=l2(self.l2_weight), name=f"dense_{h:02d}")(nn_model)
             if self.use_dropout:
-                nn_model = Dropout(self.dropout_alpha)(nn_model)
+                nn_model = Dropout(self.dropout_alpha, name=f"dropout_h_{h:02d}")(nn_model)
             if self.use_noise:
-                nn_model = GaussianNoise(self.noise_sd)(nn_model)
-        nn_model = Dense(self.outputs, activation=self.output_activation)(nn_model)
+                nn_model = GaussianNoise(self.noise_sd, name=f"ganoise_h_{h:02d}")(nn_model)
+        nn_model = Dense(self.outputs,
+                         activation=self.output_activation, name=f"dense_{self.hidden_layers:02d}")(nn_model)
         self.model = Model(nn_input, nn_model)
         if self.optimizer == "adam":
             self.optimizer_obj = Adam(lr=self.lr, beta_1=self.adam_beta_1, beta_2=self.adam_beta_2, decay=self.decay)
@@ -89,6 +92,24 @@ class DenseNeuralNetwork(object):
             self.model.fit(x, y_class, batch_size=self.batch_size, epochs=self.epochs, verbose=self.verbose)
         else:
             self.model.fit(x, y, batch_size=self.batch_size, epochs=self.epochs, verbose=self.verbose)
+        return
+
+    def save_fortran_model(self, filename):
+        nn_ds = xr.Dataset()
+        num_dense = 0
+        layer_names = []
+        for layer in self.model.layers:
+            if "dense" in layer.name:
+                layer_names.append(layer.name)
+                dense_weights = layer.get_weights()
+                nn_ds[layer.name + "_weights"] = ((layer.name + "_in", layer.name + "_out"), dense_weights[0])
+                nn_ds[layer.name + "_bias"] = ((layer.name + "_out",), dense_weights[1])
+                nn_ds[layer.name + "_weights"].attrs["name"] = layer.name
+                nn_ds[layer.name + "_weights"].attrs["activation"] = layer.get_config()["activation"]
+                num_dense += 1
+        nn_ds["layer_names"] = (("num_layers",), np.array(layer_names))
+        nn_ds.attrs["num_layers"] = num_dense
+        nn_ds.to_netcdf(filename, encoding={'layer_names':{'dtype': 'S1'}})
         return
 
     def predict(self, x):
