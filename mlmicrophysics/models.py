@@ -5,7 +5,6 @@ from keras.optimizers import Adam, SGD
 import keras.backend as K
 import numpy as np
 import xarray as xr
-from netCDF4 import stringtochar
 import pandas as pd
 
 
@@ -31,15 +30,13 @@ class DenseNeuralNetwork(object):
         verbose: Level of detail to provide during training
         model: Keras Model object
     """
-    def __init__(self, hidden_layers=1, hidden_neurons=4, inputs=1, outputs=1, activation="relu",
+    def __init__(self, hidden_layers=1, hidden_neurons=4, activation="relu",
                  output_activation="linear", optimizer="adam", loss="mse", use_noise=False, noise_sd=0.01,
                  lr=0.001, use_dropout=False, dropout_alpha=0.1, batch_size=128, epochs=2,
                  l2_weight=0.01, sgd_momentum=0.9, adam_beta_1=0.9, adam_beta_2=0.999, decay=0, verbose=0,
                  classifier=False):
         self.hidden_layers = hidden_layers
         self.hidden_neurons = hidden_neurons
-        self.inputs = inputs
-        self.outputs = outputs
         self.activation = activation
         self.output_activation = output_activation
         self.optimizer = optimizer
@@ -63,8 +60,15 @@ class DenseNeuralNetwork(object):
         self.model = None
         self.optimizer_obj = None
 
-    def build_neural_network(self):
-        nn_input = Input(shape=(self.inputs,), name="input")
+    def build_neural_network(self, inputs, outputs):
+        """
+        Create Keras neural network model and compile it.
+
+        Args:
+            inputs (int): Number of input predictor variables
+            outputs (int): Number of output predictor variables
+        """
+        nn_input = Input(shape=(inputs,), name="input")
         nn_model = nn_input
         for h in range(self.hidden_layers):
             nn_model = Dense(self.hidden_neurons, activation=self.activation,
@@ -73,7 +77,7 @@ class DenseNeuralNetwork(object):
                 nn_model = Dropout(self.dropout_alpha, name=f"dropout_h_{h:02d}")(nn_model)
             if self.use_noise:
                 nn_model = GaussianNoise(self.noise_sd, name=f"ganoise_h_{h:02d}")(nn_model)
-        nn_model = Dense(self.outputs,
+        nn_model = Dense(outputs,
                          activation=self.output_activation, name=f"dense_{self.hidden_layers:02d}")(nn_model)
         self.model = Model(nn_input, nn_model)
         if self.optimizer == "adam":
@@ -83,7 +87,9 @@ class DenseNeuralNetwork(object):
         self.model.compile(optimizer=self.optimizer, loss=self.loss)
 
     def fit(self, x, y):
-        self.build_neural_network()
+        inputs = x.shape[1]
+        outputs = y.shape[1]
+        self.build_neural_network(inputs, outputs)
         if self.classifier:
             self.y_labels = np.unique(y)
             y_class = np.zeros((y.shape[0], self.y_labels.size), dtype=np.int32)
@@ -120,6 +126,10 @@ class DenseNeuralNetwork(object):
             y_out = self.model.predict(x, batch_size=self.batch_size).ravel()
         return y_out
 
+    def predict_proba(self, x):
+        y_prob = self.model.predict(x, batch_size=self.batch_size)
+        return y_prob
+
 
 class DenseGAN(object):
     """
@@ -129,25 +139,26 @@ class DenseGAN(object):
     Args:
         hidden_layers: Number of hidden layers in each network
         hidden_neurons: number of neurons in each hidden layer
-        inputs: Number of input variables
-        outputs: Number of output variables
         activation: Type of nonlinear activation function. Choose from relu, elu, selu, tanh,
         optimizer: Neural network optimization function. Use defaults or pass keras optimizer object.
         loss: Name of loss function being used.
         use_noise: Apply Gaussian noise to hidden layers to generate uncertainty in results
         noise_sd: Standard deviation of Gaussian noise
         use_dropout: Whether or not to include dropout layers
-        dropout_alpha:
+        dropout_alpha: Percent chance of neuron being randomly set to 0. Value should be between 0 and 1.
+        batch_norm_output: Whether or not to add batch normalization layer to output of generator
+        epochs: Number of epochs to train model
+        verbose: If greater than 0, output batch loss values during training
+        report_frequency: How often to report the batch loss
+
 
     """
-    def __init__(self, hidden_layers=2, hidden_neurons=16, inputs=1, outputs=1, activation="relu",
+    def __init__(self, hidden_layers=2, hidden_neurons=16, activation="relu",
                  optimizer="adam", loss="binary_crossentropy", use_noise=False, noise_sd=0.1, use_dropout=False,
                  dropout_alpha=0.1, batch_norm_output=True, batch_size=1024, epochs=20,
                  verbose=0, report_frequency=50, classifier=False):
         self.hidden_layers = hidden_layers
         self.hidden_neurons = hidden_neurons
-        self.inputs = inputs
-        self.outputs = outputs
         self.activation = activation
         self.optimizer = optimizer
         self.loss = loss
@@ -164,16 +175,10 @@ class DenseGAN(object):
         self.generator = None
         self.discriminator = None
         self.gen_disc = None
-        # Build generator model
-        self.build_generator()
-        # Build discriminator model
-        self.build_discriminator()
-        # Stack generator and discriminator models for training the generator
-        self.stack_gen_disc()
-        self.gen_predict_func = K.function([self.generator.input, K.learning_phase()], [self.generator.output])
+        self.gen_predict_func = None
 
-    def build_generator(self):
-        gen_input = Input((self.inputs,))
+    def build_generator(self, inputs, outputs):
+        gen_input = Input((inputs,))
         gen_model = gen_input
         for h in range(self.hidden_layers):
             gen_model = Dense(self.hidden_neurons)(gen_model)
@@ -182,15 +187,15 @@ class DenseGAN(object):
                 gen_model = GaussianNoise(self.noise_sd)(gen_model)
             if self.use_dropout:
                 gen_model = Dropout(self.dropout_alpha)(gen_model)
-        gen_model = Dense(self.outputs)(gen_model)
+        gen_model = Dense(outputs)(gen_model)
         if self.batch_norm_output:
             gen_model = BatchNormalization()(gen_model)
         self.generator = Model(gen_input, gen_model)
         self.generator.compile(optimizer=self.optimizer, loss="mse")
 
-    def build_discriminator(self):
-        disc_input = Input((self.outputs,))
-        disc_cond_input = Input((self.inputs,))
+    def build_discriminator(self, inputs, outputs):
+        disc_input = Input((outputs,))
+        disc_cond_input = Input((inputs,))
         disc_model = Concatenate()([disc_cond_input, disc_input])
         for h in range(self.hidden_layers):
             disc_model = Dense(self.hidden_neurons)(disc_model)
@@ -208,13 +213,20 @@ class DenseGAN(object):
         if self.generator is None or self.discriminator is None:
             raise RuntimeError("The generator or discriminator models have not been built yet.")
         self.discriminator.trainable = False
-        #for layer in self.discriminator.layers:
-        #    layer.trainable = False
         stacked_model = self.discriminator([self.generator.layers[0].output, self.generator.output])
         self.gen_disc = Model(self.generator.input, stacked_model)
         self.gen_disc.compile(optimizer=self.optimizer, loss=self.loss)
 
     def fit(self, x, y):
+        inputs = x.shape[1]
+        outputs = y.shape[1]
+        # Build generator model
+        self.build_generator(inputs, outputs)
+        # Build discriminator model
+        self.build_discriminator(inputs, outputs)
+        # Stack generator and discriminator models for training the generator
+        self.stack_gen_disc()
+        self.gen_predict_func = K.function([self.generator.input, K.learning_phase()], [self.generator.output])
         batch_half = int(self.batch_size // 2)
         # Remove examples until the number of training examples is divisible by the batch size
         batch_diff = x.shape[0] % self.batch_size
@@ -255,7 +267,7 @@ class DenseGAN(object):
         return pd.DataFrame(loss_history)
 
     def predict(self, x):
-        predictions = self.generator.predict(x)
+        predictions = self.generator.predict(x).ravel()
         return predictions
 
 
