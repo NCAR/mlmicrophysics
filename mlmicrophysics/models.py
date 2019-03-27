@@ -88,7 +88,10 @@ class DenseNeuralNetwork(object):
 
     def fit(self, x, y):
         inputs = x.shape[1]
-        outputs = y.shape[1]
+        if len(y.shape) == 1:
+            outputs = 1
+        else:
+            outputs = y.shape[1]
         self.build_neural_network(inputs, outputs)
         if self.classifier:
             self.y_labels = np.unique(y)
