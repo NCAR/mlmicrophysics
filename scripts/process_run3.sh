@@ -12,4 +12,4 @@ module load gnu/7.3.0 openmpi-x/3.1.0 python/3.6.4
 source /glade/work/dgagne/ncar_pylib_dl/bin/activate
 cd ~/mlmicrophysics/scripts
 python -u process_cesm_output.py ../config/cesm_tau_run3_process.yml -p 5 >& tau_run3_process.log
-python -u process_cesm_output.py ../config/cesm_tau_run3_process_qr.yml -p 5 >& tau_run3_process.log
+python -u process_cesm_output.py ../config/cesm_tau_run3_process_qr.yml -p 5 >& tau_run3_process_qr.log
