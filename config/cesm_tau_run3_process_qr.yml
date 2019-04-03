@@ -1,4 +1,4 @@
-model_path: "/gpfs/fs1/scratch/cchen/archive/TAU_run3/atm/hist"
+model_path: "/glade/p/cisl/aiml/dgagne/TAU_run3/"
 model_file_start: "TAU_run3.cam.h1"
 model_file_end: "nc"
 time_var: "time"
