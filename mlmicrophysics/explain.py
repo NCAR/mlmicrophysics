@@ -78,7 +78,7 @@ def feature_importance_column(x, y, column_index, permutations, model, metric_fu
         for p in range(permutations):
             print(column_index, p)
             rs.shuffle(perm_indices)
-            x_perm[:, column_index] = x[perm_indices, column_index]
+            x_perm[np.arange(x.shape[0]), column_index] = x[perm_indices, column_index]
             perm_pred = model.predict(x_perm)
             perm_scores[p] = metric_function(y, perm_pred)
         return column_index, perm_scores
