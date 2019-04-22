@@ -6,7 +6,6 @@ subroutine collect_step(deltatin, t, rho, qcin, ncin, qrin, nrin, &
     use stochastic_collect_tau_cam
     integer, parameter :: r8 = selected_real_kind(12)
     integer, intent(inout) :: mgncol
-    integer :: i
     real(kind=r8), intent(in) :: deltatin
     real(kind=r8), intent(in) :: t(mgncol)
     real(kind=r8), intent(in) :: rho(mgncol)

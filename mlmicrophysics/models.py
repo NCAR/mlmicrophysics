@@ -92,6 +92,8 @@ class DenseNeuralNetwork(object):
             outputs = 1
         else:
             outputs = y.shape[1]
+        if self.classifier:
+            outputs = np.unique(y).size
         self.build_neural_network(inputs, outputs)
         if self.classifier:
             self.y_labels = np.unique(y)
