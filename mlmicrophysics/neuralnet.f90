@@ -171,7 +171,7 @@ contains
         ! Args:
         ! neuralnet_model (input): Array of type(Dense) objects
         ! input (input): 2D array of input values. Each row is a separate instance and each column is a model input.
-        ! prediction (output):
+        ! prediction (output): The prediction of the neural network as a 2D array of dimension (examples, outputs)
 
         type(Dense), intent(in) :: neuralnet_model(:)
         real(kind=8), intent(in) :: input(:, :)
@@ -196,6 +196,7 @@ contains
     end subroutine neuralnet_predict
 
     subroutine check(status)
+        ! Check for netCDF errors
         integer, intent ( in) :: status
         if(status /= nf90_noerr) then
           print *, trim(nf90_strerror(status))
