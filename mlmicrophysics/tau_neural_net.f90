@@ -30,16 +30,16 @@ module tau_neural_net
             character(len=13) :: row_name
             isu = 20
             osu = 25
-            open(isu, neural_net_path // "input_scale_values.csv")
+            open(isu, file=neural_net_path // "input_scale_values.csv", access="sequential", form="formatted")
             read(isu, "(A)")
             do i=1, num_inputs
-                read(isu, *), row_name, input_scale_values(i, 1), input_scale_values(i, 2)
+                read(isu, *) row_name, input_scale_values(i, 1), input_scale_values(i, 2)
             end do
             close(isu)
-            open(osu, neural_net_path // "output_scale_values.csv")
+            open(osu, file=neural_net_path // "output_scale_values.csv", access="sequential", form="formatted")
             read(osu, "(A)")
             do i=1, num_outputs
-                read(osu, *), row_name, output_scale_values(i, 1), output_scale_values(i, 2)
+                read(osu, *)  row_name, output_scale_values(i, 1), output_scale_values(i, 2)
             end do
             close(osu)
         end subroutine load_scale_values
@@ -51,7 +51,6 @@ module tau_neural_net
             !   neural_net_path: Path to neural networks
             !
             character(len=*), intent(in) :: neural_net_path
-            type(tau_emulators), intent(out) :: emulators
             ! Load each neural network from the neural net directory
             call init_neuralnet(neural_net_path // "dnn_qr_class_fortran.nc", emulators%qr_classifier)
             call init_neuralnet(neural_net_path // "dnn_qr_fortran.nc", emulators%qr_regressor)
@@ -86,7 +85,7 @@ module tau_neural_net
             real(r8), dimension(mgncol), intent(in) :: qc, qr, nc, nr, rho
             real(r8), intent(in) :: q_small
             real(r8), dimension(mgncol), intent(out) :: qc_tend, qr_tend, nc_tend, nr_tend
-            integer(i8) :: i, j, qr_class, nr_class
+            integer(i8) :: i, j, qr_class, nc_class, nr_class
             integer, parameter :: num_inputs = 5
             real(r8), dimension(1, 5) :: nn_inputs, nn_inputs_log_norm
             real(r8), dimension(:, :), allocatable :: nz_qr_prob, nz_nr_prob, nz_nc_prob
@@ -95,7 +94,8 @@ module tau_neural_net
                 if (qc(i) >= q_small) then
                     nn_inputs = reshape((/ qc(i), qr(i), nc(i), nr(i), rho(i) /), (/ 1, 5 /))
                     do j=1, num_inputs
-                        nn_inputs_log_norm(1, j) = (log10(max(nn_inputs(1, j), q_small)) - input_scale_values(j, 1)) / input_scale_values(j, 2)
+                        nn_inputs_log_norm(1, j) = (log10(max(nn_inputs(1, j), q_small)) - input_scale_values(j, 1)) / &
+                            input_scale_values(j, 2)
                     end do
                     ! calculate the qr and qc tendencies
                     call neuralnet_predict(emulators%qr_classifier, nn_inputs_log_norm, nz_qr_prob)

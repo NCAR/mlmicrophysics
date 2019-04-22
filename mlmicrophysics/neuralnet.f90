@@ -54,7 +54,7 @@ contains
         ! activation_type: Array of the same dimensions as input with the nonlinear activation applied.
         real(kind=8), dimension(:, :), intent(in) :: input
         character(len=10), intent(in) :: activation_type
-        real(kind=8), dimension(size(input, 1), size(input,2)) :: apply_activation
+        real(kind=8), dimension(size(input, 1), size(input, 2)) :: apply_activation
         real(kind=8), parameter :: selu_alpha = 1.6732
         real(kind=8), parameter :: selu_lambda = 1.0507
         select case (trim(activation_type))
@@ -81,7 +81,7 @@ contains
             case ("tanh")
                 apply_activation = tanh(input)
             case ("softmax")
-                apply_activation = exp(input) / sum(exp(input), dim=2)
+                apply_activation = exp(input) / reshape(sum(exp(input), dim=2), (/  size(input, 1), 1 /))
             case ("linear")
                 apply_activation = input
             case default
