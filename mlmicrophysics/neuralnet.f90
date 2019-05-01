@@ -54,9 +54,11 @@ contains
         ! activation_type: Array of the same dimensions as input with the nonlinear activation applied.
         real(kind=8), dimension(:, :), intent(in) :: input
         character(len=10), intent(in) :: activation_type
+        real(kind=8), dimension(size(input, 1)) :: softmax_sum
         real(kind=8), dimension(size(input, 1), size(input, 2)) :: apply_activation
         real(kind=8), parameter :: selu_alpha = 1.6732
         real(kind=8), parameter :: selu_lambda = 1.0507
+        integer :: i, j
         select case (trim(activation_type))
             case ("relu")
                 where(input < 0)
@@ -81,7 +83,12 @@ contains
             case ("tanh")
                 apply_activation = tanh(input)
             case ("softmax")
-                apply_activation = exp(input) / reshape(sum(exp(input), dim=2), (/  size(input, 1), 1 /))
+                softmax_sum = sum(exp(input), dim=2) 
+                do i=1, size(input, 1)
+                    do j=1, size(input, 2)
+                        apply_activation(i, j) = exp(input(i, j)) / softmax_sum(i)
+                    end do
+                end do
             case ("linear")
                 apply_activation = input
             case default
@@ -113,7 +120,6 @@ contains
         character (len=11) :: layer_in_dim_name
         character (len=12) :: layer_out_dim_name
         real (kind=8), allocatable :: temp_weights(:, :)
-        print *, "open file"
         ! Open netCDF file
         call check(nf90_open(filename, nf90_nowrite, ncid))
         ! Get the number of layers in the neural network
@@ -157,7 +163,6 @@ contains
             ! Get the name of the activation function, which is stored as an attribute of the weights variable
             call check(nf90_get_att(ncid, layer_weight_var_id, "activation", &
                                     neural_net_model(i)%activation))
-            print *, neural_net_model(i)%activation
         end do
         print *, "finished loading neural network " // filename
         call check(nf90_close(ncid))

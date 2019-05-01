@@ -3,7 +3,7 @@ module tau_neural_net
     implicit none
     integer, parameter, public :: r8 = selected_real_kind(12)
     integer, parameter, public :: i8 = selected_int_kind(18)
-
+    character(len=*), parameter :: neural_net_path = "/glade/work/cchen/TAU_ML/data/"
     type tau_emulators
         type(Dense), allocatable :: qr_classifier(:)
         type(Dense), allocatable :: qr_regressor(:)
@@ -20,11 +20,11 @@ module tau_neural_net
     real, dimension(5, 2), save :: input_scale_values
     real, dimension(10, 2), save :: output_scale_values
     contains
-        subroutine load_scale_values(neural_net_path)
+        subroutine load_scale_values
             ! Reads csv files containing means and standard deviations for the inputs and outputs
             ! of each neural network
             ! neural_net_path: Path to directory containing neural net netCDF files and scaling csv files.
-            character(len=*), intent(in) :: neural_net_path
+            ! character(len=*), intent(in) :: neural_net_path
             integer, parameter :: num_inputs=5, num_outputs = 10
             integer :: isu, osu, i
             character(len=13) :: row_name
@@ -44,13 +44,13 @@ module tau_neural_net
             close(osu)
         end subroutine load_scale_values
 
-        subroutine initialize_tau_emulators(neural_net_path)
+        subroutine initialize_tau_emulators
             ! Load neural network netCDF files and scaling values. Values are placed in to emulators,
             ! input_scale_values, and output_scale_values.
             ! Args:
             !   neural_net_path: Path to neural networks
             !
-            character(len=*), intent(in) :: neural_net_path
+            !character(len=*), intent(in) :: neural_net_path
             ! Load each neural network from the neural net directory
             call init_neuralnet(neural_net_path // "dnn_qr_class_fortran.nc", emulators%qr_classifier)
             call init_neuralnet(neural_net_path // "dnn_qr_fortran.nc", emulators%qr_regressor)
@@ -60,7 +60,7 @@ module tau_neural_net
             call init_neuralnet(neural_net_path // "dnn_nc_class_fortran.nc", emulators%nc_classifier)
             call init_neuralnet(neural_net_path // "dnn_nc_fortran.nc", emulators%nc_regressor)
             ! Load the scale values from a csv file.
-            call load_scale_values(neural_net_path)
+            call load_scale_values
         end subroutine initialize_tau_emulators
 
 
@@ -81,7 +81,7 @@ module tau_neural_net
             !    nc_tend: nc tendency
             !    nr_tend: nr tendency
             !
-            integer(i8), intent(in) :: mgncol
+            integer, intent(in) :: mgncol
             real(r8), dimension(mgncol), intent(in) :: qc, qr, nc, nr, rho
             real(r8), intent(in) :: q_small
             real(r8), dimension(mgncol), intent(out) :: qc_tend, qr_tend, nc_tend, nr_tend
@@ -115,12 +115,13 @@ module tau_neural_net
                         nc_tend(i) = 0._r8
                     else
                         call neuralnet_predict(emulators%nc_regressor, nn_inputs_log_norm, nc_tend_log_norm)
-                        nc_tend(i) = 10 ** (nc_tend_log_norm(1, 1) * output_scale_values(3, 2) + &
+                        nc_tend(i) = -10 ** (nc_tend_log_norm(1, 1) * output_scale_values(3, 2) + &
                                 output_scale_values(3, 1))
                     end if
                     ! calculate the nr tendency
                     call neuralnet_predict(emulators%nr_classifier, nn_inputs_log_norm, nz_nr_prob)
                     nr_class = maxloc(pack(nz_nr_prob, .true.), 1)
+                    ! print *, "Classes", qr_class, nc_class, nr_class
                     if (nr_class == 2) then
                         nr_tend(i) = 0._r8
                     elseif (nr_class == 1) then
