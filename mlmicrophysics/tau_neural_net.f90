@@ -3,7 +3,7 @@ module tau_neural_net
     implicit none
     integer, parameter, public :: r8 = selected_real_kind(12)
     integer, parameter, public :: i8 = selected_int_kind(18)
-    character(len=*), parameter :: neural_net_path = "/glade/work/cchen/TAU_ML/data/"
+    character(len=*), parameter :: neural_net_path = "/glade/p/cisl/aiml/dgagne/cam_run2_models/"
     type tau_emulators
         type(Dense), allocatable :: qr_classifier(:)
         type(Dense), allocatable :: qr_regressor(:)
@@ -17,8 +17,8 @@ module tau_neural_net
     ! Neural networks and scale values saved within the scope of the module.
     ! Need to call initialize_tau_emulators to load weights and tables from disk.
     type(tau_emulators), save :: emulators
-    real, dimension(5, 2), save :: input_scale_values
-    real, dimension(10, 2), save :: output_scale_values
+    real(r8), dimension(5, 2), save :: input_scale_values
+    real(r8), dimension(10, 2), save :: output_scale_values
     contains
         subroutine load_scale_values
             ! Reads csv files containing means and standard deviations for the inputs and outputs
@@ -42,6 +42,14 @@ module tau_neural_net
                 read(osu, *)  row_name, output_scale_values(i, 1), output_scale_values(i, 2)
             end do
             close(osu)
+            print *, "Input Scale Values"
+            do i=1, num_inputs
+                print *, input_scale_values(i, 1), input_scale_values(i, 2)
+            end do
+            print *, "Output Scale Values"
+            do i=1, num_outputs
+                print *, output_scale_values(i, 1), output_scale_values(i, 2)
+            end do
         end subroutine load_scale_values
 
         subroutine initialize_tau_emulators
@@ -126,12 +134,12 @@ module tau_neural_net
                         nr_tend(i) = 0._r8
                     elseif (nr_class == 1) then
                         call neuralnet_predict(emulators%nr_neg_regressor, nn_inputs_log_norm, nr_tend_log_norm)
-                        nr_tend(i) = -10 ** (nr_tend_log_norm(1, 1) * output_scale_values(5, 2) + &
-                                output_scale_values(5, 1))
+                        nr_tend(i) = -10 ** (nr_tend_log_norm(1, 1) * output_scale_values(4, 2) + &
+                                output_scale_values(4, 1))
                     else
                         call neuralnet_predict(emulators%nr_pos_regressor, nn_inputs_log_norm, nr_tend_log_norm)
-                        nr_tend(i) = 10 ** (nr_tend_log_norm(1, 1) * output_scale_values(4, 2) + &
-                                output_scale_values(4, 1))
+                        nr_tend(i) = 10 ** (nr_tend_log_norm(1, 1) * output_scale_values(5, 2) + &
+                                output_scale_values(5, 1))
                     end if
                 else
                     qc_tend(i) = 0._r8
