@@ -152,8 +152,8 @@ def calc_temperature(dataset, density_variable="RHO_CLUBB_lev", pressure_variabl
     return temperature
 
 
-def convert_to_dataframe(dataset, variables, times, time_var="time",
-                         subset_variable="QC_TAU_in", subset_threshold=0):
+def convert_to_dataframe(dataset, variables, times, time_var,
+                         subset_variable, subset_threshold):
     """
     Convert 4D Dataset to flat dataframe for machine learning.
 
@@ -172,7 +172,13 @@ def convert_to_dataframe(dataset, variables, times, time_var="time",
     for t, time in enumerate(times):
         print(t, time)
         time_df = dataset[variables].sel(**{time_var: time}).to_dataframe()
-        data_frames.append(time_df.loc[time_df[subset_variable] > subset_threshold].reset_index())
+        if type(subset_variable) == list:
+            valid = np.zeros(time_df.shape[0], dtype=bool)
+            for s, sv in enumerate(subset_variable):
+                valid[time_df[subset_variable] >= subset_threshold[s]] = True
+        else:
+            valid = time_df[subset_variable] >= subset_threshold
+        data_frames.append(time_df.loc[valid].reset_index())
         print(data_frames[-1])
         del time_df
     return pd.concat(data_frames)
