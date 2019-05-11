@@ -39,11 +39,12 @@ def main():
     input_transforms = config["input_transforms"]
     output_transforms = config["output_transforms"]
     np.random.seed(config["random_seed"])
-    input_scaler = scalers[config["input_scaler"]]
+    input_scaler = scalers[config["input_scaler"]]()
     subsample = config["subsample"]
     if not exists(out_path):
         os.makedirs(out_path)
     train_files, val_files, test_files = subset_data_files_by_date(data_path, "*.csv", **config["subset_data"])
+    print("Loading training data")
     scaled_input_train, \
     labels_train, \
     transformed_out_train, \
@@ -51,6 +52,7 @@ def main():
     output_scalers = assemble_data_files(train_files, input_cols, output_cols, input_transforms,
                                          output_transforms, input_scaler, subsample=subsample)
 
+    print("Loading testing data")
     scaled_input_test, \
     labels_test, \
     transformed_out_test, \
@@ -60,6 +62,8 @@ def main():
                                               train=False, subsample=subsample)
     input_scaler_df = pd.DataFrame({"mean": input_scaler.mean_, "scale": input_scaler.scale_},
                                    index=input_cols)
+    print(transformed_out_test.columns)
+    print(transformed_out_test.index)
     input_scaler_df.to_csv(join(out_path, "input_scale_values.csv"), index_label="input")
     out_scales_list = []
     for var in output_scalers.keys():
@@ -89,7 +93,7 @@ def main():
     for o, output_col in enumerate(output_cols):
         print("Train Classifer ", output_col)
         classifiers[output_col] = DenseNeuralNetwork(**config["classifier_networks"])
-        classifiers[output_col].fit(scaled_input_train, labels_train)
+        classifiers[output_col].fit(scaled_input_train, labels_train[output_col])
         classifiers[output_col].save_fortran_model(join(config["out_path"],
                                                         "dnn_{0}_class_fortran.nc".format(output_col[0:2])))
         save_model(classifiers[output_col].model,
@@ -99,7 +103,7 @@ def main():
         print("Evaluate Classifier", output_col)
         test_prediction_labels[:, o] = classifiers[output_col].predict(scaled_input_test)
         confusion_matrices[output_col] = confusion_matrix(labels_test[output_col],
-                                                          test_prediction_labels[:, o])
+                                                          test_prediction_labels  [:, o])
         for class_score in classifier_scores.columns:
             classifier_scores.loc[output_col, class_score] = class_metrics[class_score](labels_test[output_col],
                                                                                         test_prediction_labels[:, o])
@@ -122,13 +126,13 @@ def main():
                            join(config["out_path"],
                                 "dnn_{0}_{1}.h5".format(output_col[0:2], out_label)))
                 print("Test Regressor", output_col, label)
-                test_prediction_values[:, o] = output_scalers[output_col][label].inverse_transform(regressors[output_col][label].predict(scaled_out_test))
+                test_prediction_values[:, o] = output_scalers[output_col][label].inverse_transform(regressors[output_col][label].predict(scaled_input_test))
                 reg_label = output_col + f"_{label:d}"
                 for reg_col in reg_cols:
                     reg_scores.loc[reg_label,
-                                   reg_col] = reg_metrics[reg_col](transformed_out_test.loc[labels_test == label,
+                                   reg_col] = reg_metrics[reg_col](transformed_out_test.loc[labels_test[output_col] == label,
                                                                                             output_col],
-                                                                    test_prediction_values[labels_test == label, o])
+                                                                    test_prediction_values[labels_test[output_col] == label, o])
                 print(reg_scores.loc[reg_label])
     classifier_scores.to_csv(join(out_path, "dnn_classifier_scores.csv"), index_label="Output")
     reg_scores.to_csv(join(out_path, "dnn_regressor_scores.csv"), index_label="Output")

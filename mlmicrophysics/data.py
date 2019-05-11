@@ -398,6 +398,7 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
                                                                   output_transforms[output_var],
                                                                   output_scalers=output_scalers[output_var])
     print("Scaling data")
+    print(combined_input_data.shape)
     if train:
         scaled_input_data = pd.DataFrame(input_scaler.fit_transform(combined_input_data),
                                          columns=combined_input_data.columns)

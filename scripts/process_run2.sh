@@ -10,6 +10,8 @@
 module purge
 module load gnu/7.3.0 openmpi-x/3.1.0 python/3.6.4
 source /glade/work/dgagne/ncar_pylib_dl/bin/activate
+cd ~/mlmicrophysics
+python setup.py install
 cd ~/mlmicrophysics/scripts
 python -u process_cesm_output.py ../config/cesm_tau_run2_process.yml -p 5 >& tau_run2_process.log
-python -u process_cesm_output.py ../config/cesm_tau_run2_process_qr.yml -p 5 >& tau_run2_process_qr.log
+#python -u process_cesm_output.py ../config/cesm_tau_run2_process_qr.yml -p 5 >& tau_run2_process_qr.log

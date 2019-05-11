@@ -99,7 +99,7 @@ module tau_neural_net
             real(r8), dimension(:, :), allocatable :: nz_qr_prob, nz_nr_prob, nz_nc_prob
             real(r8), dimension(:, :), allocatable :: qr_tend_log_norm, nc_tend_log_norm, nr_tend_log_norm
             do i=1, mgncol
-                if (qc(i) >= q_small) then
+                if ((qc(i) >= q_small) .or. (qr(i) >= q_small)) then
                     nn_inputs = reshape((/ qc(i), qr(i), nc(i), nr(i), rho(i) /), (/ 1, 5 /))
                     do j=1, num_inputs
                         nn_inputs_log_norm(1, j) = (log10(max(nn_inputs(1, j), q_small)) - input_scale_values(j, 1)) / &

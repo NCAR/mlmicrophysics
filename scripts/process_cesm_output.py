@@ -79,7 +79,7 @@ def process_cesm_file_subset(filename, staggered_variables=None, time_var="time"
         if type(subset_variable) == list:
             valid = np.zeros(time_df.shape[0], dtype=bool)
             for s, sv in enumerate(subset_variable):
-                valid[time_df[subset_variable] >= subset_threshold[s]] = True
+                valid[time_df[sv] >= subset_threshold[s]] = True
         else:
             valid = time_df[subset_variable] >= subset_threshold
         time_sub_df = time_df.loc[valid].reset_index()
