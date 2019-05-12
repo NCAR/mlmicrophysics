@@ -409,7 +409,7 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
     else:
         scaled_input_data = pd.DataFrame(input_scaler.transform(combined_input_data),
                                          columns=combined_input_data.columns)
-    return scaled_input_data, output_labels, transformed_output_data, scaled_output_data, output_scalers, all_meta_data
+    return scaled_input_data, output_labels, transformed_output_data, scaled_output_data, output_scalers, combined_meta_data
 
 
 def log10_transform(x, eps=1e-15):
