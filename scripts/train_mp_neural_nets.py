@@ -49,7 +49,8 @@ def main():
     labels_train, \
     transformed_out_train, \
     scaled_out_train, \
-    output_scalers = assemble_data_files(train_files, input_cols, output_cols, input_transforms,
+    output_scalers, \
+    meta_train = assemble_data_files(train_files, input_cols, output_cols, input_transforms,
                                          output_transforms, input_scaler, subsample=subsample)
 
     print("Loading testing data")
@@ -57,13 +58,15 @@ def main():
     labels_test, \
     transformed_out_test, \
     scaled_out_test, \
-    output_scalers_test = assemble_data_files(test_files, input_cols, output_cols, input_transforms,
+    output_scalers_test, \
+    meta_test = assemble_data_files(test_files, input_cols, output_cols, input_transforms,
                                               output_transforms, input_scaler, output_scalers=output_scalers,
                                               train=False, subsample=subsample)
     input_scaler_df = pd.DataFrame({"mean": input_scaler.mean_, "scale": input_scaler.scale_},
                                    index=input_cols)
     print(transformed_out_test.columns)
     print(transformed_out_test.index)
+    meta_test.to_csv(join(out_path, "meta_test.csv"), index_label="index")
     input_scaler_df.to_csv(join(out_path, "input_scale_values.csv"), index_label="input")
     out_scales_list = []
     for var in output_scalers.keys():
@@ -134,12 +137,15 @@ def main():
                                                                                             output_col],
                                                                     test_prediction_values[labels_test[output_col] == label, o])
                 print(reg_scores.loc[reg_label])
+    print("Saving data")
     classifier_scores.to_csv(join(out_path, "dnn_classifier_scores.csv"), index_label="Output")
     reg_scores.to_csv(join(out_path, "dnn_regressor_scores.csv"), index_label="Output")
     test_pred_values_df = pd.DataFrame(test_prediction_values, columns=output_cols)
     test_pred_labels_df = pd.DataFrame(test_prediction_labels, columns=output_cols)
     test_pred_values_df.to_csv(join(out_path, "test_prediction_values.csv"), index_label="index")
     test_pred_labels_df.to_csv(join(out_path, "test_prediction_labels.csv"), index_label="index")
+    labels_test.to_csv(join(out_path, "test_cam_labels.csv"), index_label="index")
+    transformed_out_test.to_csv(join(out_path, "test_cam_values.csv"), index_label="index")
 
     return
 

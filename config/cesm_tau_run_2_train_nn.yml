@@ -1,5 +1,5 @@
 data_path: "/glade/p/cisl/aiml/dgagne/cam_mp_files_run2_big_csv/"
-out_path: "/glade/p/cisl/aiml/dgagne/cam_run2_models_20190510/"
+out_path: "/glade/p/cisl/aiml/dgagne/cam_run2_models_20190512/"
 subset_data:
   train_date_start: 0
   train_date_end: 8800
