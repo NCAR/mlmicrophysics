@@ -61,12 +61,12 @@ module tau_neural_net
             !character(len=*), intent(in) :: neural_net_path
             ! Load each neural network from the neural net directory
             call init_neuralnet(neural_net_path // "dnn_qr_class_fortran.nc", emulators%qr_classifier)
-            call init_neuralnet(neural_net_path // "dnn_qr_fortran.nc", emulators%qr_regressor)
+            call init_neuralnet(neural_net_path // "dnn_qr_pos_fortran.nc", emulators%qr_regressor)
             call init_neuralnet(neural_net_path // "dnn_nr_class_fortran.nc", emulators%nr_classifier)
             call init_neuralnet(neural_net_path // "dnn_nr_neg_fortran.nc", emulators%nr_neg_regressor)
             call init_neuralnet(neural_net_path // "dnn_nr_pos_fortran.nc", emulators%nr_pos_regressor)
             call init_neuralnet(neural_net_path // "dnn_nc_class_fortran.nc", emulators%nc_classifier)
-            call init_neuralnet(neural_net_path // "dnn_nc_fortran.nc", emulators%nc_regressor)
+            call init_neuralnet(neural_net_path // "dnn_nc_pos_fortran.nc", emulators%nc_regressor)
             ! Load the scale values from a csv file.
             call load_scale_values
         end subroutine initialize_tau_emulators
