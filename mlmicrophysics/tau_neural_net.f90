@@ -3,7 +3,7 @@ module tau_neural_net
     implicit none
     integer, parameter, public :: r8 = selected_real_kind(12)
     integer, parameter, public :: i8 = selected_int_kind(18)
-    character(len=*), parameter :: neural_net_path = "/glade/p/cisl/aiml/dgagne/cam_run2_models/"
+    character(len=*), parameter :: neural_net_path = "/glade/p/cisl/aiml/dgagne/cam_run2_models_20190512/"
     type tau_emulators
         type(Dense), allocatable :: qr_classifier(:)
         type(Dense), allocatable :: qr_regressor(:)
@@ -18,14 +18,14 @@ module tau_neural_net
     ! Need to call initialize_tau_emulators to load weights and tables from disk.
     type(tau_emulators), save :: emulators
     real(r8), dimension(5, 2), save :: input_scale_values
-    real(r8), dimension(10, 2), save :: output_scale_values
+    real(r8), dimension(4, 2), save :: output_scale_values
     contains
         subroutine load_scale_values
             ! Reads csv files containing means and standard deviations for the inputs and outputs
             ! of each neural network
             ! neural_net_path: Path to directory containing neural net netCDF files and scaling csv files.
             ! character(len=*), intent(in) :: neural_net_path
-            integer, parameter :: num_inputs=5, num_outputs = 10
+            integer, parameter :: num_inputs=5, num_outputs = 4
             integer :: isu, osu, i
             character(len=13) :: row_name
             isu = 20
@@ -123,8 +123,8 @@ module tau_neural_net
                         nc_tend(i) = 0._r8
                     else
                         call neuralnet_predict(emulators%nc_regressor, nn_inputs_log_norm, nc_tend_log_norm)
-                        nc_tend(i) = -10 ** (nc_tend_log_norm(1, 1) * output_scale_values(3, 2) + &
-                                output_scale_values(3, 1))
+                        nc_tend(i) = -10 ** (nc_tend_log_norm(1, 1) * output_scale_values(2, 2) + &
+                                output_scale_values(2, 1))
                     end if
                     ! calculate the nr tendency
                     call neuralnet_predict(emulators%nr_classifier, nn_inputs_log_norm, nz_nr_prob)
@@ -134,12 +134,12 @@ module tau_neural_net
                         nr_tend(i) = 0._r8
                     elseif (nr_class == 1) then
                         call neuralnet_predict(emulators%nr_neg_regressor, nn_inputs_log_norm, nr_tend_log_norm)
-                        nr_tend(i) = -10 ** (nr_tend_log_norm(1, 1) * output_scale_values(4, 2) + &
-                                output_scale_values(4, 1))
+                        nr_tend(i) = -10 ** (nr_tend_log_norm(1, 1) * output_scale_values(3, 2) + &
+                                output_scale_values(3, 1))
                     else
                         call neuralnet_predict(emulators%nr_pos_regressor, nn_inputs_log_norm, nr_tend_log_norm)
-                        nr_tend(i) = 10 ** (nr_tend_log_norm(1, 1) * output_scale_values(5, 2) + &
-                                output_scale_values(5, 1))
+                        nr_tend(i) = 10 ** (nr_tend_log_norm(1, 1) * output_scale_values(4, 2) + &
+                                output_scale_values(4, 1))
                     end if
                 else
                     qc_tend(i) = 0._r8
