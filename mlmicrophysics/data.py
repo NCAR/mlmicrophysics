@@ -327,7 +327,7 @@ def categorize_output_values(output_values, output_transforms, output_scalers=No
 def assemble_data_files(files, input_cols, output_cols, input_transforms, output_transforms,
                         input_scaler, output_scalers=None, train=True, subsample=1,
                         filter_comparison=("QR_TAU_in", ">=", 1e-18), 
-                        meta_cols=("lat","lev","lon","depth","row","col","pressure","temperature","time")):
+                        meta_cols=("lat","lev","lon","depth","row","col","pressure","temperature","time", "qrtend_MG2", "nrtend_MG2", "nctend_MG2")):
     """
 
     Args:

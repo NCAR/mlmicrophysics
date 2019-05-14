@@ -82,17 +82,18 @@ def main():
                          index_label="output")
     classifiers = dict()
     regressors = dict()
-    test_prediction_values = np.zeros(scaled_out_test.shape)
-    test_prediction_labels = np.zeros(scaled_out_test.shape)
-    classifier_scores = pd.DataFrame(0, index=output_cols, columns=["accuracy", "heidke", "peirce"])
-    confusion_matrices = dict()
-    reg_cols = ["rmse", "mae", "r2", "hellinger"]
     reg_index = []
     for output_col in output_cols:
         for label in list(output_transforms[output_col].keys()):
             if label != 0:
                 reg_index.append(output_col + f"_{label:d}")
+    test_prediction_values = np.zeros((scaled_out_test.shape[0], len(reg_index)))
+    test_prediction_labels = np.zeros(scaled_out_test.shape)
+    classifier_scores = pd.DataFrame(0, index=output_cols, columns=["accuracy", "heidke", "peirce"])
+    confusion_matrices = dict()
+    reg_cols = ["rmse", "mae", "r2", "hellinger"]
     reg_scores = pd.DataFrame(0, index=reg_index, columns=reg_cols)
+    l = 0
     for o, output_col in enumerate(output_cols):
         print("Train Classifer ", output_col)
         classifiers[output_col] = DenseNeuralNetwork(**config["classifier_networks"])
@@ -129,24 +130,24 @@ def main():
                            join(config["out_path"],
                                 "dnn_{0}_{1}.h5".format(output_col[0:2], out_label)))
                 print("Test Regressor", output_col, label)
-                test_prediction_values[:, o] = output_scalers[output_col][label].inverse_transform(regressors[output_col][label].predict(scaled_input_test))
+                test_prediction_values[:, l] = output_scalers[output_col][label].inverse_transform(regressors[output_col][label].predict(scaled_input_test))
                 reg_label = output_col + f"_{label:d}"
                 for reg_col in reg_cols:
                     reg_scores.loc[reg_label,
                                    reg_col] = reg_metrics[reg_col](transformed_out_test.loc[labels_test[output_col] == label,
                                                                                             output_col],
-                                                                    test_prediction_values[labels_test[output_col] == label, o])
+                                                                    test_prediction_values[labels_test[output_col] == label, l])
                 print(reg_scores.loc[reg_label])
+                l += 1
     print("Saving data")
     classifier_scores.to_csv(join(out_path, "dnn_classifier_scores.csv"), index_label="Output")
     reg_scores.to_csv(join(out_path, "dnn_regressor_scores.csv"), index_label="Output")
-    test_pred_values_df = pd.DataFrame(test_prediction_values, columns=output_cols)
+    test_pred_values_df = pd.DataFrame(test_prediction_values, columns=reg_index)
     test_pred_labels_df = pd.DataFrame(test_prediction_labels, columns=output_cols)
     test_pred_values_df.to_csv(join(out_path, "test_prediction_values.csv"), index_label="index")
     test_pred_labels_df.to_csv(join(out_path, "test_prediction_labels.csv"), index_label="index")
     labels_test.to_csv(join(out_path, "test_cam_labels.csv"), index_label="index")
     transformed_out_test.to_csv(join(out_path, "test_cam_values.csv"), index_label="index")
-
     return
 
 if __name__ == "__main__":
