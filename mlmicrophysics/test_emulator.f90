@@ -10,8 +10,8 @@ print *, "load emulators"
 call initialize_tau_emulators
 print *, "loaded emulators"
 qc = (/ 1e-10_r8, 1e-5_r8, 1e-3_r8, 2e-3_r8, 1e-9_r8 /)
-qr = (/ 1e-10_r8, 1e-8_r8, 1e-2_r8, 1e-4_r8, 2e-5_r8 /)
-nc = (/ 10.0_r8, 100.0_r8, 500.0_r8, 50000.0_r8, 10.0_r8 /)
+qr = (/ 1e-10_r8, 1e-8_r8, 1e-2_r8, 1e-4_r8, 2e-3_r8 /)
+nc = (/ 10.0_r8, 100.0_r8, 500.0_r8, 50000.0_r8, 1.0_r8 /)
 nr = (/ 10.0_r8, 1.0_r8, 1000.0_r8, 1e6_r8, 10000.0_r8 /)
 rho = (/ 0.9_r8, 0.8_r8, 0.6_r8, 0.9_r8, 0.5_r8 /)
 qsmall = 1.0e-18_r8
