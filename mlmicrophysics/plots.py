@@ -11,7 +11,7 @@ def timestep_input_distributions(timestep_ds,
                                  dpi=200):
     fig, axes = plt.subplots(2, 2, figsize=figsize)
     variables = ["QC_TAU_in", "QR_TAU_in", "NC_TAU_in", "NR_TAU_in"]
-    bins = [(-18, -3, 0.5), (-18, -3, 0.5), (-12, 6, 0.5), (-12, 6, 0.5)]
+    bins = [(-18, -1, 0.5), (-18, -1, 0.5), (-12, 8, 0.5), (-12, 8, 0.5)]
     color = "blue"
     for a, ax in enumerate(axes.ravel()):
         flat_input_vals = timestep_ds[variables[a]].values.ravel()
@@ -31,13 +31,14 @@ def timestep_input_maps(timestep_ds,
                         fontsize=14,
                         dpi=200,
                         ):
-    fig, axes = plt.subplots(2, 2, figsize=figsize, projection=ccrs.PlateCarree())
+    fig, axes = plt.subplots(2, 2, figsize=figsize, subplot_kw=dict(projection=ccrs.PlateCarree()))
     variables = ["QC_TAU_in", "QR_TAU_in", "NC_TAU_in", "NR_TAU_in"]
-    bins = [(-18, -3, 0.5), (-18, -3, 0.5), (-12, 6, 0.5), (-12, 6, 0.5)]
+    bins = [(-18, -1, 0.5), (-18, -1, 0.5), (-12, 8, 0.5), (-12, 8, 0.5)]
     for a, ax in enumerate(axes.ravel()):
         ax.coastlines()
-        input_vals = timestep_ds[variables[a]].values
-        log_input_vals = np.ma.array(np.where(input_vals > 0, np.log10(input_vals), np.nan), mask=input_vals == 0)
+        input_vals = timestep_ds[variables[a]].values.max(axis=0)
+        print(input_vals.shape)
+        log_input_vals = np.ma.array(np.where(input_vals > 0, np.log10(np.maximum(input_vals, 1e-18)), np.nan), mask=input_vals == 0)
         pc = ax.pcolormesh(timestep_ds["lon"], timestep_ds["lat"], log_input_vals, vmin=bins[a][0], vmax=bins[a][1])
         plt.colorbar(pc, ax=ax)
         ax.set_title(variables[a].split("_")[0], fontsize=fontsize)
