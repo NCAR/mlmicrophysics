@@ -3,7 +3,7 @@ module tau_neural_net
     implicit none
     integer, parameter, public :: r8 = selected_real_kind(12)
     integer, parameter, public :: i8 = selected_int_kind(18)
-    character(len=*), parameter :: neural_net_path = "/glade/p/cisl/aiml/dgagne/cam_run2_models_20190512/"
+    character(len=*), parameter :: neural_net_path = "/glade/p/cisl/aiml/dgagne/cam_run5_models_20190524/"
     type tau_emulators
         type(Dense), allocatable :: qr_classifier(:)
         type(Dense), allocatable :: qr_regressor(:)
@@ -108,6 +108,7 @@ module tau_neural_net
                     ! calculate the qr and qc tendencies
                     call neuralnet_predict(emulators%qr_classifier, nn_inputs_log_norm, nz_qr_prob)
                     qr_class = maxloc(pack(nz_qr_prob, .true.), 1)
+                    print*, "qr_prob", nz_qr_prob, qr_class
                     if (qr_class == 1) then
                         qr_tend(i) = 0._r8
                         qc_tend(i) = 0._r8
@@ -129,6 +130,7 @@ module tau_neural_net
                     ! calculate the nr tendency
                     call neuralnet_predict(emulators%nr_classifier, nn_inputs_log_norm, nz_nr_prob)
                     nr_class = maxloc(pack(nz_nr_prob, .true.), 1)
+                    print*, "nr_prob", nz_nr_prob, nr_class
                     ! print *, "Classes", qr_class, nc_class, nr_class
                     if (nr_class == 2) then
                         nr_tend(i) = 0._r8
