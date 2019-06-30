@@ -87,7 +87,22 @@ def feature_importance_column(x, y, column_index, permutations, model, metric_fu
         raise e
 
 
-def partial_dependence_1d(x, model, var_index, var_vals):
+def partial_dependence_dask(x, model, var_val_count, client):
+    var_vals = np.zeros((x.shape[1], var_val_count), dtype=np.float32)
+    for j in range(x.shape[1]):
+        var_vals[j] = np.linspace(x[:, j].min(), x[:, j].max(), var_val_count)
+    x_remote = client.scatter(x)
+    model_remote = client.scatter(model)
+    var_vals_remote = client.scatter(var_vals)
+    pd_vals = np.zeros((x.shape[1], var_val_count, x.shape[0]), dtype=np.float32)
+    for j in range(x.shape[1]):
+        pd_futures = client.map(partial_dependence_1d, x_remote, var_index=j,
+                                model=model_remote, var_vals=var_vals_remote)
+        pd_vals[j] = client.gather(pd_futures)
+    return pd_vals, var_vals
+
+
+def partial_dependence_1d(x, var_index=0, model=None, var_vals=None):
     """
     Calculate how the mean prediction of an ML model varies if one variable's value is fixed across all input
     examples.
@@ -101,11 +116,11 @@ def partial_dependence_1d(x, model, var_index, var_vals):
     Returns:
         Array of partial dependence values.
     """
-    partial_dependence = np.zeros(var_vals.shape)
+    partial_dependence = np.zeros((var_vals.shape[0], x.shape[0]), dtype=np.float32)
     x_copy = np.copy(x)
     for v, var_val in enumerate(var_vals):
         x_copy[:, var_index] = var_val
-        partial_dependence[v] = model.predict(x_copy).mean()
+        partial_dependence[v] = model.predict(x_copy).ravel()
     return partial_dependence
 
 
