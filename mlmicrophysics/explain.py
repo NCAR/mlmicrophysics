@@ -87,7 +87,28 @@ def feature_importance_column(x, y, column_index, permutations, model, metric_fu
         raise e
 
 
-def partial_dependence_1d(x, model, var_index, var_vals):
+def partial_dependence_mp(x, model_file, var_val_count, n_procs):
+    var_vals = np.zeros((x.shape[1], var_val_count), dtype=np.float32)
+    for j in range(x.shape[1]):
+        var_vals[j] = np.linspace(x[:, j].min(), x[:, j].max(), var_val_count)
+    num_splits = n_procs
+    pd_vals = np.zeros((x.shape[1], var_val_count, x.shape[0]), dtype=np.float32)
+    split_points = np.linspace(0, x.shape[0], num_splits + 1).astype(int)
+    pool = Pool(n_procs)
+
+    def update_pd_vals(result):
+        pd_vals[result[1], :, result[2]:result[3]] = result[0]
+    for j in range(x.shape[1]):
+        print(j)
+        for n in range(num_splits):
+            pool.apply_async(partial_dependence_1d_mp, (x[split_points[n]:split_points[n+1]], split_points[n], split_points[n+1]), dict(var_index=j,
+                                model_file=model_file, var_vals=var_vals), callback=update_pd_vals)
+    pool.close()
+    pool.join()
+    return pd_vals, var_vals
+
+
+def partial_dependence_1d_mp(x, split_start, split_end, var_index=0, model_file=None, var_vals=None):
     """
     Calculate how the mean prediction of an ML model varies if one variable's value is fixed across all input
     examples.
@@ -101,11 +122,46 @@ def partial_dependence_1d(x, model, var_index, var_vals):
     Returns:
         Array of partial dependence values.
     """
-    partial_dependence = np.zeros(var_vals.shape)
+    try:
+        from keras.models import load_model
+        import tensorflow as tf
+        import keras.backend as K
+        sess = K.tf.Session(config=tf.ConfigProto(device_count={"CPU": 1}, intra_op_parallelism_threads=1,
+                            inter_op_parallelism_threads=1))
+        K.set_session(sess)
+        with tf.device("/cpu:0"):
+            model = load_model(model_file)
+            partial_dependence = np.zeros((var_vals.shape[1], x.shape[0]), dtype=np.float32)
+            x_copy = np.copy(x)
+            for v, var_val in enumerate(var_vals[var_index]):
+                print(var_index, var_val)
+                x_copy[:, var_index] = var_val
+                partial_dependence[v] = model.predict(x_copy).ravel()
+    except Exception as e:
+        print(traceback.format_exc())
+        raise e
+    return partial_dependence, var_index, split_start, split_end
+
+
+def partial_dependence_1d(x, var_index=0, model=None, var_vals=None):
+    """
+    Calculate how the mean prediction of an ML model varies if one variable's value is fixed across all input
+    examples.
+
+    Args:
+        x: array of input variables
+        model: scikit-learn style model object
+        var_index: column index of the variable being investigated
+        var_vals: values of the input variable that are fixed.
+
+    Returns:
+        Array of partial dependence values.
+    """
+    partial_dependence = np.zeros((var_vals.shape[0], x.shape[0]), dtype=np.float32)
     x_copy = np.copy(x)
     for v, var_val in enumerate(var_vals):
         x_copy[:, var_index] = var_val
-        partial_dependence[v] = model.predict(x_copy).mean()
+        partial_dependence[v] = model.predict(x_copy).ravel()
     return partial_dependence
 
 
