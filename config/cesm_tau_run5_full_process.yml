@@ -1,4 +1,4 @@
-model_path: "/glade/p/cisl/aiml/dgagne/TAU_run5/"
+model_path: "/glade/p/cisl/aiml/dgagne/TAU_run5_full/"
 model_file_start: "TAU_run5.cam.h1"
 model_file_end: "nc"
 time_var: "time"

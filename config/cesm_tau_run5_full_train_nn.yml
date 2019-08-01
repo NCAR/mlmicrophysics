@@ -33,27 +33,27 @@ output_transforms:
     0: ["==", 0, "zero_transform", "None"]
     1: [">", 0, "log10_transform", "StandardScaler"]
 classifier_networks:
-  hidden_layers: 6
-  hidden_neurons: 30
+  hidden_layers: 4
+  hidden_neurons: 60
   loss: "categorical_crossentropy"
   output_activation: "softmax"
   activation: "relu"
-  epochs: 15
-  batch_size: 1024
+  epochs: 10
+  batch_size: 4096
   verbose: 1
-  lr: 0.0001
-  l2_weight: 1.0e-8
+  lr: 0.001
+  l2_weight: 1.0e-4
   classifier: 1
 regressor_networks:
-  hidden_layers: 6
-  hidden_neurons: 30
+  hidden_layers: 4
+  hidden_neurons: 60
   loss: "mse"
   output_activation: "linear"
   activation: "relu"
-  epochs: 15
-  batch_size: 1024
+  epochs: 10
+  batch_size: 4096
   verbose: 1
-  lr: 0.0001
-  l2_weight: 1.0e-8
+  lr: 0.001
+  l2_weight: 1.0e-4
   classifier: 0
 
