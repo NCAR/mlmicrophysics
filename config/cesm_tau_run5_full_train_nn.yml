@@ -9,7 +9,8 @@ random_seed: 328942
 subsample: 1.0
 classifier_metrics: ["acc", "pss", "hss"]
 regressor_metrics: ["mse", "mae", "r2", "hellinger"]
-input_cols: ["QC_TAU_in", "NC_TAU_in", "QR_TAU_in", "NR_TAU_in", "RHO_CLUBB_lev", "lamc", "lamr", "lcldm", "n0r", "pgam", "precip_frac"]
+input_cols: ["QC_TAU_in", "NC_TAU_in", "QR_TAU_in", "NR_TAU_in", "RHO_CLUBB_lev",
+             "lamc", "lamr", "lcldm", "n0r", "pgam", "precip_frac"]
 output_cols: ["qrtend_TAU", "nctend_TAU", "nrtend_TAU"]
 input_transforms:
   QC_TAU_in: "log10_transform"

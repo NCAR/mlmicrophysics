@@ -72,7 +72,8 @@ module tau_neural_net
         end subroutine initialize_tau_emulators
 
 
-        subroutine tau_emulate_cloud_rain_interactions(qc, nc, qr, nr, rho, q_small, mgncol, qc_tend, qr_tend, nc_tend, nr_tend)
+        subroutine tau_emulate_cloud_rain_interactions(qc, nc, qr, nr, rho, lamc, lamr, lcldm, n0r, pgam, &
+                                                       precip_frac, q_small, mgncol, qc_tend, qr_tend, nc_tend, nr_tend)
             ! Calculates emulated tau microphysics tendencies from neural networks.
             !
             ! Input args:
@@ -90,20 +91,28 @@ module tau_neural_net
             !    nr_tend: nr tendency
             !
             integer, intent(in) :: mgncol
-            real(r8), dimension(mgncol), intent(in) :: qc, qr, nc, nr, rho
+            real(r8), dimension(mgncol), intent(in) :: qc, qr, nc, nr, rho, lamc, lamr, lcldm, n0r, pgam, precip_frac
             real(r8), intent(in) :: q_small
             real(r8), dimension(mgncol), intent(out) :: qc_tend, qr_tend, nc_tend, nr_tend
             integer(i8) :: i, j, qr_class, nc_class, nr_class
-            integer, parameter :: num_inputs = 5
-            real(r8), dimension(1, 5) :: nn_inputs, nn_inputs_log_norm
+            integer, parameter :: num_inputs = 11
+            real(r8), dimension(1, num_inputs) :: nn_inputs, nn_inputs_log_norm
+            integer, dimension(num_inputs) :: log_inputs
             real(r8), dimension(:, :), allocatable :: nz_qr_prob, nz_nr_prob, nz_nc_prob
             real(r8), dimension(:, :), allocatable :: qr_tend_log_norm, nc_tend_log_norm, nr_tend_log_norm
             do i=1, mgncol
                 if ((qc(i) >= q_small) .or. (qr(i) >= q_small)) then
-                    nn_inputs = reshape((/ qc(i), nc(i), qr(i), nr(i), rho(i) /), (/ 1, 5 /))
+                    nn_inputs = reshape((/ qc(i), nc(i), qr(i), nr(i), rho(i), &
+                            lamc(i), lamr(i), lcldm(i), n0r(i), pgam(i), precip_frac(i) /), (/ 1, num_inputs /))
+                    log_inputs = (/ 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0 /)
                     do j=1, num_inputs
-                        nn_inputs_log_norm(1, j) = (log10(max(nn_inputs(1, j), q_small)) - input_scale_values(j, 1)) / &
+                        if (log_inputs(j) == 1) then
+                            nn_inputs_log_norm(1, j) = (log10(max(nn_inputs(1, j), 1e-40)) - input_scale_values(j, 1)) / &
                             input_scale_values(j, 2)
+                        else
+                            nn_inputs_log_norm(1, j) = (nn_inputs(1, j) - input_scale_values(j, 1)) / &
+                            input_scale_values(j, 2)
+                        end if
                     end do
                     ! calculate the qr and qc tendencies
                     call neuralnet_predict(emulators%qr_classifier, nn_inputs_log_norm, nz_qr_prob)

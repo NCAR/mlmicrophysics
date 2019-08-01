@@ -3,7 +3,7 @@ module tau_neural_net
     implicit none
     integer, parameter, public :: r8 = selected_real_kind(12)
     integer, parameter, public :: i8 = selected_int_kind(18)
-    character(len=*), parameter :: neural_net_path = "/glade/p/cisl/aiml/dgagne/cam_run2_models_20190512/"
+    character(len=*), parameter :: neural_net_path = "/glade/p/cisl/aiml/dgagne/cam_run2_models_20190730/"
     type tau_emulators
         type(Dense), allocatable :: qr_classifier(:)
         type(Dense), allocatable :: qr_regressor(:)
