@@ -3,7 +3,7 @@ import yaml
 from os.path import exists, join
 import xarray as xr
 import numpy as np
-from mlmicrophysics.data import get_cam_output_times, split_staggered_variable
+from mlmicrophysics.data import split_staggered_variable
 from mlmicrophysics.data import load_cam_output, unstagger_vertical, convert_to_dataframe
 from mlmicrophysics.data import calc_pressure_field, calc_temperature, add_index_coords
 from glob import glob
@@ -42,7 +42,9 @@ def main():
                                      out_path=config["out_path"],
                                      out_format=config["out_format"])
     else:
-        cluster = LocalCluster(n_workers=args.proc)
+        cluster = LocalCluster(n_workers=0)
+        for i in range(args.proc):
+            cluster.start_worker(ncores=1)
         client = Client(cluster)
         print(client)
         futures = client.map(process_cesm_file_subset, filenames,
@@ -60,7 +62,7 @@ def main():
 
 
 def process_cesm_file_subset(filename, staggered_variables=None, time_var="time", out_variables=None,
-                             subset_variable="QC_TAU_in", subset_threshold=1e-6, out_path="./",
+                             subset_variable=None, subset_threshold=None, out_path="./",
                              out_start="cam_mp_data", out_format="csv"):
     model_ds = xr.open_dataset(filename, decode_times=False)
     for staggered_variable in staggered_variables:
@@ -74,7 +76,13 @@ def process_cesm_file_subset(filename, staggered_variables=None, time_var="time"
         time_hours = int(time * 24)
         print(time_hours)
         time_df = model_ds[out_variables].sel(**{time_var: time}).to_dataframe()
-        time_sub_df = time_df.loc[time_df[subset_variable] >= subset_threshold].reset_index()
+        if type(subset_variable) == list:
+            valid = np.zeros(time_df.shape[0], dtype=bool)
+            for s, sv in enumerate(subset_variable):
+                valid[time_df[sv] >= subset_threshold[s]] = True
+        else:
+            valid = time_df[subset_variable] >= subset_threshold
+        time_sub_df = time_df.loc[valid].reset_index()
         del time_df
         if out_format == "csv":
             time_sub_df.to_csv(join(out_path, "{0}_{1:06d}.csv".format(out_start, time_hours)),

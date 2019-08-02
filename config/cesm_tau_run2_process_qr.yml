@@ -9,8 +9,8 @@ out_variables: ["P0", "PS", "depth", "row", "col", "hyam", "hybm", "pressure", "
                 "QC_TAU_in", "NC_TAU_in", "QR_TAU_in", "NR_TAU_in",
                 "qctend_MG2", "qctend_TAU", "nctend_MG2", "nctend_TAU",
                 "qrtend_MG2", "qrtend_TAU", "nrtend_MG2", "nrtend_TAU"]
-subset_variable: ["QC_TAU_in", "QR_TAU_in"]
-subset_threshold: [1.0e-18, 1.0e-18]
-out_path: "/glade/p/cisl/aiml/dgagne/cam_mp_files_run2_big_csv/"
-out_start: "cam_mp_data_run2"
+subset_variable: "QR_TAU_in"
+subset_threshold: 1.0e-12
+out_path: "/glade/p/cisl/aiml/dgagne/cam_mp_files_run2_csv/"
+out_start: "cam_mp_data_run2_qr"
 out_format: "csv"

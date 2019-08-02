@@ -152,8 +152,8 @@ def calc_temperature(dataset, density_variable="RHO_CLUBB_lev", pressure_variabl
     return temperature
 
 
-def convert_to_dataframe(dataset, variables, times, time_var="time",
-                         subset_variable="QC_TAU_in", subset_threshold=0):
+def convert_to_dataframe(dataset, variables, times, time_var,
+                         subset_variable, subset_threshold):
     """
     Convert 4D Dataset to flat dataframe for machine learning.
 
@@ -172,7 +172,13 @@ def convert_to_dataframe(dataset, variables, times, time_var="time",
     for t, time in enumerate(times):
         print(t, time)
         time_df = dataset[variables].sel(**{time_var: time}).to_dataframe()
-        data_frames.append(time_df.loc[time_df[subset_variable] > subset_threshold].reset_index())
+        if type(subset_variable) == list:
+            valid = np.zeros(time_df.shape[0], dtype=bool)
+            for s, sv in enumerate(subset_variable):
+                valid[time_df[subset_variable] >= subset_threshold[s]] = True
+        else:
+            valid = time_df[subset_variable] >= subset_threshold
+        data_frames.append(time_df.loc[valid].reset_index())
         print(data_frames[-1])
         del time_df
     return pd.concat(data_frames)
@@ -320,7 +326,8 @@ def categorize_output_values(output_values, output_transforms, output_scalers=No
 
 def assemble_data_files(files, input_cols, output_cols, input_transforms, output_transforms,
                         input_scaler, output_scalers=None, train=True, subsample=1,
-                        filter_comparison=("NC_TAU_in", ">=", 10)):
+                        filter_comparison=("QR_TAU_in", ">=", 1e-18), 
+                        meta_cols=("lat","lev","lon","depth","row","col","pressure","temperature","time", "qrtend_MG2", "nrtend_MG2", "nctend_MG2")):
     """
 
     Args:
@@ -340,6 +347,7 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
     """
     all_input_data = []
     all_output_data = []
+    all_meta_data = []
     transforms = {"log10_transform": log10_transform,
                   "neg_log10_transform": neg_log10_transform,
                   "zero_transform": zero_transform}
@@ -348,7 +356,7 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
     for filename in files:
         print(filename)
         data = pd.read_csv(filename, index_col="Index")
-        data = data.loc[ops[filter_comparison[1]](data[filter_comparison[0]], filter_comparison[2])]
+        #data = data.loc[ops[filter_comparison[1]](data[filter_comparison[0]], filter_comparison[2])]
         data.reset_index(inplace=True)
         if subsample < 1:
             sample_index = int(np.round(data.shape[0] * subsample))
@@ -357,10 +365,12 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
             sample_indices = np.arange(data.shape[0])
         all_input_data.append(data.loc[sample_indices, input_cols])
         all_output_data.append(data.loc[sample_indices, output_cols])
+        all_meta_data.append(data.loc[sample_indices, meta_cols])
         del data
     print("Combining data")
     combined_input_data = pd.concat(all_input_data, ignore_index=True)
     combined_output_data = pd.concat(all_output_data, ignore_index=True)
+    combined_meta_data = pd.concat(all_meta_data, ignore_index=True)
     print("Combined Data Size", combined_input_data.shape)
     del all_input_data[:]
     del all_output_data[:]
@@ -392,13 +402,14 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
                                                                   output_transforms[output_var],
                                                                   output_scalers=output_scalers[output_var])
     print("Scaling data")
+    print(combined_input_data.shape)
     if train:
         scaled_input_data = pd.DataFrame(input_scaler.fit_transform(combined_input_data),
                                          columns=combined_input_data.columns)
     else:
         scaled_input_data = pd.DataFrame(input_scaler.transform(combined_input_data),
                                          columns=combined_input_data.columns)
-    return scaled_input_data, output_labels, transformed_output_data, scaled_output_data, output_scalers
+    return scaled_input_data, output_labels, transformed_output_data, scaled_output_data, output_scalers, combined_meta_data
 
 
 def log10_transform(x, eps=1e-15):
