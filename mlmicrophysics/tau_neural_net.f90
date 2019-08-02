@@ -3,7 +3,9 @@ module tau_neural_net
     implicit none
     integer, parameter, public :: r8 = selected_real_kind(12)
     integer, parameter, public :: i8 = selected_int_kind(18)
-    character(len=*), parameter :: neural_net_path = "/glade/p/cisl/aiml/dgagne/cam_run5_models_20190524/"
+    character(len=*), parameter :: neural_net_path = "/glade/p/cisl/aiml/dgagne/cam_run5_models_20190726/"
+    integer, parameter :: num_inputs = 11
+    integer, parameter :: num_outputs = 4
     type tau_emulators
         type(Dense), allocatable :: qr_classifier(:)
         type(Dense), allocatable :: qr_regressor(:)
@@ -17,7 +19,7 @@ module tau_neural_net
     ! Neural networks and scale values saved within the scope of the module.
     ! Need to call initialize_tau_emulators to load weights and tables from disk.
     type(tau_emulators), save :: emulators
-    real(r8), dimension(5, 2), save :: input_scale_values
+    real(r8), dimension(11, 2), save :: input_scale_values
     real(r8), dimension(4, 2), save :: output_scale_values
     contains
         subroutine load_scale_values
@@ -25,7 +27,6 @@ module tau_neural_net
             ! of each neural network
             ! neural_net_path: Path to directory containing neural net netCDF files and scaling csv files.
             ! character(len=*), intent(in) :: neural_net_path
-            integer, parameter :: num_inputs=5, num_outputs = 4
             integer :: isu, osu, i
             character(len=13) :: row_name
             isu = 20
@@ -95,7 +96,6 @@ module tau_neural_net
             real(r8), intent(in) :: q_small
             real(r8), dimension(mgncol), intent(out) :: qc_tend, qr_tend, nc_tend, nr_tend
             integer(i8) :: i, j, qr_class, nc_class, nr_class
-            integer, parameter :: num_inputs = 11
             real(r8), dimension(1, num_inputs) :: nn_inputs, nn_inputs_log_norm
             integer, dimension(num_inputs) :: log_inputs
             real(r8), dimension(:, :), allocatable :: nz_qr_prob, nz_nr_prob, nz_nc_prob
