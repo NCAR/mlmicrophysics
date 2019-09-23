@@ -126,7 +126,7 @@ def partial_dependence_1d_mp(x, split_start, split_end, var_index=0, model_file=
         from keras.models import load_model
         import tensorflow as tf
         import keras.backend as K
-        sess = K.tf.Session(config=tf.ConfigProto(device_count={"CPU": 1}, intra_op_parallelism_threads=1,
+        sess = tf.Session(config=tf.ConfigProto(device_count={"CPU": 1}, intra_op_parallelism_threads=1,
                             inter_op_parallelism_threads=1))
         K.set_session(sess)
         with tf.device("/cpu:0"):
