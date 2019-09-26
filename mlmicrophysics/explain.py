@@ -4,6 +4,7 @@ import pandas as pd
 import traceback
 import matplotlib.pyplot as plt
 from copy import deepcopy
+from .call_collect import call_collect
 
 
 def feature_importance(x, y, model, metric_function, x_columns=None, permutations=30, processes=1, seed=8272):
@@ -88,6 +89,18 @@ def feature_importance_column(x, y, column_index, permutations, model, metric_fu
 
 
 def partial_dependence_mp(x, model_file, var_val_count, n_procs):
+    """
+    Perform partial dependence calculations in parallel with multiprocessing
+
+    Args:
+        x: training data array
+        model_file: file name for keras model hdf5 file
+        var_val_count: number of partial dependence values per variable
+        n_procs: number of processes for multiprocessing
+
+    Returns:
+        pd_vals: partial dependence values, var_vals: values for each input variable paired with partial dependence
+    """
     var_vals = np.zeros((x.shape[1], var_val_count), dtype=np.float32)
     for j in range(x.shape[1]):
         var_vals[j] = np.linspace(x[:, j].min(), x[:, j].max(), var_val_count)
@@ -101,7 +114,8 @@ def partial_dependence_mp(x, model_file, var_val_count, n_procs):
     for j in range(x.shape[1]):
         print(j)
         for n in range(num_splits):
-            pool.apply_async(partial_dependence_1d_mp, (x[split_points[n]:split_points[n+1]], split_points[n], split_points[n+1]), dict(var_index=j,
+            pool.apply_async(partial_dependence_1d_mp, (x[split_points[n]:split_points[n+1]], split_points[n],
+                                                        split_points[n+1]), dict(var_index=j,
                                 model_file=model_file, var_vals=var_vals), callback=update_pd_vals)
     pool.close()
     pool.join()
@@ -141,6 +155,59 @@ def partial_dependence_1d_mp(x, split_start, split_end, var_index=0, model_file=
         print(traceback.format_exc())
         raise e
     return partial_dependence, var_index, split_start, split_end
+
+
+def partial_dependence_tau_mp(x, var_val_count, n_procs):
+    var_vals = np.zeros((x.shape[1], var_val_count), dtype=np.float32)
+    for j in range(x.shape[1]):
+        var_vals[j] = np.linspace(x[:, j].min(), x[:, j].max(), var_val_count)
+    num_splits = n_procs
+    tau_outputs = 4
+    pd_vals = np.zeros((x.shape[1], var_val_count, tau_outputs, x.shape[0]), dtype=np.float32)
+    split_points = np.linspace(0, x.shape[0], num_splits + 1).astype(int)
+    pool = Pool(n_procs)
+
+    def update_pd_vals(result):
+        pd_vals[:, :, :, result[1]:result[2]] = result[0]
+
+    for j in range(x.shape[1]):
+        for n in range(num_splits):
+            pool.apply_async(partial_dependence_1d_tau, (x[split_points[n]:split_points[n + 1]], split_points[n],
+                                                        split_points[n + 1], var_vals),
+                             callback=update_pd_vals)
+    pool.close()
+    pool.join()
+    return pd_vals, var_vals
+
+
+def partial_dependence_1d_tau(x, split_start, split_end, var_vals):
+    """
+    Calculate how the mean prediction of an ML model varies if one variable's value is fixed across all input
+    examples.
+
+    Args:
+        x: array of input variables
+        split_start: index of first example
+        split_end: index of last example
+
+    Returns:
+        Array of partial dependence values.
+    """
+    try:
+        tau_outputs = 4
+        partial_dependence = np.zeros((x.shape[1], var_vals.shape[1], tau_outputs, x.shape[0]), dtype=np.float32)
+        x_copy = np.copy(x)
+        for var_index in range(x.shape[1]):
+            for v, var_val in enumerate(var_vals[var_index]):
+                x_copy[:, var_index] = var_val
+                partial_dependence[var_index, v] = np.vstack(call_collect(1, x_copy[:, 0],
+                                                                x_copy[:, 1], x_copy[:, 2],
+                                                                x_copy[:, 3], x_copy[:, 4], x[:, 5],
+                                                                x_copy[:, 6], x_copy[:, 7]))
+    except Exception as e:
+        print(traceback.format_exc())
+        raise e
+    return partial_dependence, split_start, split_end
 
 
 def partial_dependence_1d(x, var_index=0, model=None, var_vals=None):

@@ -162,7 +162,7 @@ subroutine stochastic_kernel_init
 
     integer :: idd, jdd
     real(r8) :: kkfac
-
+    character(len=128) :: prefix
     call calc_bins
 
 
@@ -171,7 +171,8 @@ subroutine stochastic_kernel_init
 
      KNN(:,:)=0._r8 ! initialize values
      kkfac=1.5_r8   ! from Zach
-     open(unit=40,file='/glade/u/home/cchen/forDJ/v3/KBARF',status='old')
+     call getenv("HOME", prefix)
+     open(unit=40,file=trim(prefix) // '/mlmicrophysics/mlmicrophysics/KBARF',status='old')
 
  941 FORMAT(2X,E12.5)
 
