@@ -6,6 +6,43 @@ from os.path import join, exists
 from sklearn.preprocessing import StandardScaler, RobustScaler, MaxAbsScaler, MinMaxScaler
 from operator import lt, le, eq, ne, ge, gt
 
+scalers = {"MinMaxScaler": MinMaxScaler,
+           "MaxAbsScaler": MaxAbsScaler,
+           "StandardScaler": StandardScaler,
+           "RobustScaler": RobustScaler}
+
+ops = {"<": lt, "<=": le, "==": eq, "!=": ne, ">=": ge, ">": gt}
+
+
+def log10_transform(x, eps=1e-18):
+    return np.log10(np.maximum(x, eps))
+
+
+def neg_log10_transform(x, eps=1e-18):
+    return np.log10(np.maximum(-x, eps))
+
+
+def zero_transform(x, eps=None):
+    return np.zeros(x.shape, dtype=np.float32)
+
+
+def inverse_log10_transform(x):
+    return 10.0 ** x
+
+
+def inverse_neg_log10_transform(x):
+    return -10.0 ** x
+
+
+transforms = {"log10_transform": log10_transform,
+              "neg_log10_transform": neg_log10_transform,
+              "zero_transform": zero_transform}
+
+
+inverse_transforms = {"log10_transform": inverse_log10_transform,
+                      "neg_log10_transform": inverse_neg_log10_transform,
+                      "zero_transform": zero_transform}
+
 
 def load_cam_output(path, file_start="TAU_run1.cam.h1", file_end="nc"):
     """
@@ -308,14 +345,7 @@ def categorize_output_values(output_values, output_transforms, output_scalers=No
     Returns:
 
     """
-    ops = {"<": lt, "<=": le, "==": eq, "!=": ne, ">=": ge, ">": gt}
-    scalers = {"MinMaxScaler": MinMaxScaler,
-               "MaxAbsScaler": MaxAbsScaler,
-               "StandardScaler": StandardScaler,
-               "RobustScaler": RobustScaler}
-    transforms = {"log10_transform": log10_transform,
-                  "neg_log10_transform": neg_log10_transform,
-                  "zero_transform": zero_transform}
+
     labels = np.zeros(output_values.shape, dtype=int)
     transformed_outputs = np.zeros(output_values.shape)
     scaled_outputs = np.zeros(output_values.shape)
@@ -363,9 +393,6 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
     all_input_data = []
     all_output_data = []
     all_meta_data = []
-    transforms = {"log10_transform": log10_transform,
-                  "neg_log10_transform": neg_log10_transform,
-                  "zero_transform": zero_transform}
     for filename in files:
         print(filename)
         data = pd.read_csv(filename, index_col="Index")
@@ -474,14 +501,66 @@ def uniform_stratify_data(output_labels, scaled_output_data, category_size, outp
     return sampling_indices
 
 
-def log10_transform(x, eps=1e-15):
-    return np.log10(np.maximum(x, eps))
+def inverse_transform_data(data, transform_dict):
+    """
+    Reconstruct original data values from partially log-transformed data
+
+    Args:
+        data: pandas DataFrame containing log-transformed data
+        transform_dict: dictionary mapping variable names in data to the type of transformation
+    Returns:
+        out_data: pandas DataFrame with data as close to original form as possible. Values below
+            the eps threshold will be set to the eps threshold.
+    """
+    out_data = pd.DataFrame(data.values, columns=data.columns, index=data.index)
+    for var, transform_name in transform_dict.items():
+        if var in out_data.columns:
+            out_data.loc[:, var] = inverse_transforms[transform_name](data[var])
+    return out_data
+
+def repopulate_input_scaler(scale_file, scaler_type="StandardScaler"):
+    """
+    Given a csv file containing scaling values, repopulate a scikit-learn
+    scaling object with those same values.
+
+    Args:
+        scale_file (str): path to csv file containing scale values
+        scaler_type (str):
+
+    Returns:
+        scaler_obj: Scaler Object with normalizing values specified.
+    """
+    scaler_obj = scalers[scaler_type]()
+    scale_data = pd.read_csv(scale_file)
+    for column in scale_data.columns[1:]:
+        setattr(scaler_obj, column + "_", scale_data[column].values)
+    return scaler_obj
 
 
-def neg_log10_transform(x, eps=1e-15):
-    return np.log10(np.maximum(-x, eps))
+def repopulate_output_scalers(scale_file, output_transforms):
+    """
+    From an output_scale_values.csv file, repopulate the scikit-learn
+    scaling objects for each output type.
 
+    Args:
+        scale_file:
+        output_transforms:
 
-def zero_transform(x, eps=None):
-    return np.zeros(x.shape, dtype=np.float32)
+    Returns:
+
+    """
+    scale_data = pd.read_csv(scale_file, index_col="output")
+    output_scalers = {}
+    for out_var in output_transforms.keys():
+        output_scalers[out_var] = {}
+        for out_label, transform in output_transforms[out_var].items():
+            if transform[2] == "None":
+                output_scalers[out_var][out_label] = None
+            else:
+                output_scalers[out_var][out_label] = scalers[transform[2]]()
+                for col in scale_data.columns:
+                    setattr(output_scalers[out_var][out_label],
+                            col, scale_data.loc[out_var, col])
+    return output_scalers
+
 

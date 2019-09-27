@@ -11,17 +11,19 @@ def test_partial_dependence_tau_mp():
     # rho (density)
     inputs[:, 1] = np.random.uniform(0.1, 1, size)
     # qcin
-    inputs[:, 2] = 10 ** np.random.normal(loc=-4, scale=3, size=size)
+    inputs[:, 2] = 10 ** np.random.normal(loc=-6, scale=2, size=size)
     # ncin
-    inputs[:, 3] = 10 ** np.random.normal(loc=3, scale=2, size=size)
+    inputs[:, 3] = 10 ** np.random.normal(loc=1, scale=1, size=size)
     # qrin
-    inputs[:, 4] = 10 ** np.random.normal(loc=-4, scale=1, size=size)
+    inputs[:, 4] = 10 ** np.random.normal(loc=-3, scale=1, size=size)
     # nrin
-    inputs[:, 5] = 10 ** np.random.normal(loc=3, scale=2, size=size)
+    inputs[:, 5] = 10 ** np.random.normal(loc=1, scale=1, size=size)
     # lcldm
     inputs[:, 6] = np.random.uniform(0.1, 1, size)
     # precip_frac
     inputs[:, 7] = np.random.uniform(0.1, 1, size)
+
+
     n_procs = 1
     var_val_count = 10
     tau_outputs = 4

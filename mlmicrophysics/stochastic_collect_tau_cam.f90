@@ -193,7 +193,7 @@ end subroutine stochastic_kernel_init
 !needs to pull in i,k fields (so might need dimensions here too)
 
 subroutine stochastic_collect_tau_tend(deltatin, t,rho, qc, qr, qcin,ncin,qrin,nrin, lcldm, precip_frac, &
-!                                       mu_c, lambda_c, n0r, lambda_r, &
+                                       !mu_c, lambda_c, n0r, lambda_r, &
                                        qcin_new,ncin_new,qrin_new,nrin_new, &
 !                                       qctend,nctend,qrtend,nrtend,qctend_TAU,nctend_TAU,qrtend_TAU,nrtend_TAU, &
                                        qctend_TAU,nctend_TAU,qrtend_TAU,nrtend_TAU, &
