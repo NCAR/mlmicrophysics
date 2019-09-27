@@ -162,7 +162,7 @@ subroutine stochastic_kernel_init
 
     integer :: idd, jdd
     real(r8) :: kkfac
-
+    character(len=128) :: prefix
     call calc_bins
 
 
@@ -171,7 +171,8 @@ subroutine stochastic_kernel_init
 
      KNN(:,:)=0._r8 ! initialize values
      kkfac=1.5_r8   ! from Zach
-     open(unit=40,file='/glade/u/home/cchen/forDJ/v3/KBARF',status='old')
+     call getenv("HOME", prefix)
+     open(unit=40,file=trim(prefix) // '/mlmicrophysics/mlmicrophysics/KBARF',status='old')
 
  941 FORMAT(2X,E12.5)
 
@@ -192,7 +193,7 @@ end subroutine stochastic_kernel_init
 !needs to pull in i,k fields (so might need dimensions here too)
 
 subroutine stochastic_collect_tau_tend(deltatin, t,rho, qc, qr, qcin,ncin,qrin,nrin, lcldm, precip_frac, &
-!                                       mu_c, lambda_c, n0r, lambda_r, &
+                                       !mu_c, lambda_c, n0r, lambda_r, &
                                        qcin_new,ncin_new,qrin_new,nrin_new, &
 !                                       qctend,nctend,qrtend,nrtend,qctend_TAU,nctend_TAU,qrtend_TAU,nrtend_TAU, &
                                        qctend_TAU,nctend_TAU,qrtend_TAU,nrtend_TAU, &

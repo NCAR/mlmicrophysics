@@ -1,13 +1,14 @@
 import numpy as np
 import pandas as pd
-from multiprocessing import Pool
 import argparse
 import yaml
 from os.path import exists, join
+from glob import glob
 import os
-from mlmicrophysics.data import subset_data_files_by_date, assemble_data_files
+from mlmicrophysics.data import subset_data_files_by_date, assemble_data_files, repopulate_input_scaler, \
+    repopulate_output_scalers, inverse_transform_data
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, MaxAbsScaler, RobustScaler
-from mlmicrophysics.explain import partial_dependence_mp
+from mlmicrophysics.explain import partial_dependence_mp, partial_dependence_tau_mp
 
 scalers = {"MinMaxScaler": MinMaxScaler,
            "MaxAbsScaler": MaxAbsScaler,
@@ -32,10 +33,12 @@ def main():
     input_transforms = config["input_transforms"]
     output_transforms = config["output_transforms"]
     np.random.seed(config["random_seed"])
-    input_scaler = scalers[config["input_scaler"]]()
+    input_scaler = repopulate_input_scaler(join(out_path, "input_scale_values.csv"),
+                                     config["input_scaler"])
+    output_scalers = repopulate_output_scalers(join(out_path, "output_scale_values.csv"),
+                                               output_transforms)
     subsample = config["subsample"]
-    if not exists(out_path):
-        os.makedirs(out_path)
+    partial_dependence_config = config["partial_dependence"]
     train_files, val_files, test_files = subset_data_files_by_date(data_path, "*.csv", **config["subset_data"])
     print("Loading training data")
     scaled_input_train, \
@@ -44,7 +47,9 @@ def main():
     scaled_out_train, \
     output_scalers, \
     meta_train = assemble_data_files(train_files, input_cols, output_cols, input_transforms,
-                                         output_transforms, input_scaler, subsample=subsample)
+                                     output_transforms, input_scaler,
+                                     output_scalers=output_scalers,
+                                     subsample=subsample, train=False)
 
     print("Loading testing data")
     scaled_input_test, \
@@ -53,12 +58,27 @@ def main():
     scaled_out_test, \
     output_scalers_test, \
     meta_test = assemble_data_files(test_files, input_cols, output_cols, input_transforms,
-                                              output_transforms, input_scaler, output_scalers=output_scalers,
-                                              train=False, subsample=subsample)
-    input_scaler_df = pd.DataFrame({"mean": input_scaler.mean_, "scale": input_scaler.scale_},
-                                   index=input_cols)
+                                    output_transforms, input_scaler, output_scalers=output_scalers,
+                                    train=False, subsample=subsample)
     if args.pdp:
-        partial_dependence_mp(scaled_input_train, )
+        model_files = sorted(glob(join(out_path, "*.h5")))
+        pd_model_vals = {}
+        pd_model_var_vals = {}
+        for model_file in model_files:
+            print(model_file)
+            model_key = model_file.split("/")[-1][:-3]
+            pd_model_vals[model_key], \
+                pd_model_var_vals[model_key] = partial_dependence_mp(scaled_input_train,
+                                                                     model_file,
+                                                                     partial_dependence_config["var_val_count"],
+                                                                     args.procs)
+        transformed_input_train = input_scaler.inverse_transform(scaled_input_train)
+        raw_input_train = inverse_transform_data(transformed_input_train, input_transforms)
+        pd_tau_vals, pd_tau_var_vals = partial_dependence_tau_mp(raw_input_train,
+                                                                 partial_dependence_config["var_val_count"],
+                                                                 args.procs)
+
+
     return
 
 

@@ -6,6 +6,43 @@ from os.path import join, exists
 from sklearn.preprocessing import StandardScaler, RobustScaler, MaxAbsScaler, MinMaxScaler
 from operator import lt, le, eq, ne, ge, gt
 
+scalers = {"MinMaxScaler": MinMaxScaler,
+           "MaxAbsScaler": MaxAbsScaler,
+           "StandardScaler": StandardScaler,
+           "RobustScaler": RobustScaler}
+
+ops = {"<": lt, "<=": le, "==": eq, "!=": ne, ">=": ge, ">": gt}
+
+
+def log10_transform(x, eps=1e-18):
+    return np.log10(np.maximum(x, eps))
+
+
+def neg_log10_transform(x, eps=1e-18):
+    return np.log10(np.maximum(-x, eps))
+
+
+def zero_transform(x, eps=None):
+    return np.zeros(x.shape, dtype=np.float32)
+
+
+def inverse_log10_transform(x):
+    return 10.0 ** x
+
+
+def inverse_neg_log10_transform(x):
+    return -10.0 ** x
+
+
+transforms = {"log10_transform": log10_transform,
+              "neg_log10_transform": neg_log10_transform,
+              "zero_transform": zero_transform}
+
+
+inverse_transforms = {"log10_transform": inverse_log10_transform,
+                      "neg_log10_transform": inverse_neg_log10_transform,
+                      "zero_transform": zero_transform}
+
 
 def load_cam_output(path, file_start="TAU_run1.cam.h1", file_end="nc"):
     """
@@ -282,24 +319,33 @@ def subset_data_by_date(data, train_date_start=0, train_date_end=1, test_date_st
 
 def categorize_output_values(output_values, output_transforms, output_scalers=None):
     """
-    Transform and rescale output values based on specified transforms and scaling functions.
+    Transform and rescale the values of a single output variable based on specified transforms and scaling functions.
+    The microphysics tendencies can be either 0 or nonzero and tend to have exponential distributions. Machine
+    learning models tend to perform better when the data are more Gaussian. To account for this, we perform
+    log transforms on the nonzero values and then normalize them. The rain water number concentration (Nr)
+    tendencies have both positive and negative exponential tendencies, so we have separate models for each side
+    and separate transformations and normalizations.
+
+    Currently, we have support for the following transforms:
+    * log10_transform: applies np.log10
+    * neg_log10_transform: applies np.log10 to the additive inverse of the inputs
+    * zero_transform: returns an array the same shape as the input but with all 0s
+
+    We support the following scalers:
+    * StandardScaler:
+    * MinMaxScaler: Rescales values to range between 0 and 1
+    * MaxAbsScaler:
 
     Args:
-        output_values:
-        output_transforms:
+        output_values: numpy.ndarray of shape (samples, 1) with the raw output values from the microphysics
+        output_transforms: dictionary with keys indicating sign of tendency and values containing a 3-element list
+         [comparison operator, splitting threshold, transform type].
         output_scalers:
 
     Returns:
 
     """
-    ops = {"<": lt, "<=": le, "==": eq, "!=": ne, ">=": ge, ">": gt}
-    scalers = {"MinMaxScaler": MinMaxScaler,
-               "MaxAbsScaler": MaxAbsScaler,
-               "StandardScaler": StandardScaler,
-               "RobustScaler": RobustScaler}
-    transforms = {"log10_transform": log10_transform,
-                  "neg_log10_transform": neg_log10_transform,
-                  "zero_transform": zero_transform}
+
     labels = np.zeros(output_values.shape, dtype=int)
     transformed_outputs = np.zeros(output_values.shape)
     scaled_outputs = np.zeros(output_values.shape)
@@ -316,7 +362,6 @@ def categorize_output_values(output_values, output_transforms, output_scalers=No
                 scaled_outputs[class_indices] = output_scalers[label].fit_transform(
                     transformed_outputs[class_indices].reshape(-1, 1)).ravel()
             else:
-                print(transformed_outputs[class_indices].shape)
                 scaled_outputs[class_indices] = output_scalers[label].transform(
                     transformed_outputs[class_indices].reshape(-1, 1)).ravel()
         else:
@@ -326,38 +371,31 @@ def categorize_output_values(output_values, output_transforms, output_scalers=No
 
 def assemble_data_files(files, input_cols, output_cols, input_transforms, output_transforms,
                         input_scaler, output_scalers=None, train=True, subsample=1,
-                        filter_comparison=("QR_TAU_in", ">=", 1e-18), 
-                        meta_cols=("lat","lev","lon","depth","row","col","pressure","temperature","time", "qrtend_MG2", "nrtend_MG2", "nctend_MG2")):
+                        meta_cols=("lat", "lev", "lon", "depth", "row", "col", "pressure", "temperature",
+                                   "time", "qrtend_MG2", "nrtend_MG2", "nctend_MG2")):
     """
+    This function loads data from a list of files
 
     Args:
-        files:
-        input_cols:
-        output_cols:
-        input_transforms:
-        output_transforms:
-        input_scaler:
-        output_scalers:
-        train:
+        files: List of files being loaded
+        input_cols: List of input columns for training the neural networks
+        output_cols: List of output columns
+        input_transforms: List of log transformations corresponding to each input
+        output_transforms: List of output log transformations corresponding to each output
+        input_scaler: Scaler Object used to normalize all inputs
+        output_scalers: Dictionary of scaler objects for each output field
+        train: Whether to fit the Scaler objects or
         subsample:
-        filter_comparison:
-
+        meta_cols:
     Returns:
 
     """
     all_input_data = []
     all_output_data = []
     all_meta_data = []
-    transforms = {"log10_transform": log10_transform,
-                  "neg_log10_transform": neg_log10_transform,
-                  "zero_transform": zero_transform}
-    ops = {"<": lt, "<=": le, "==": eq, "!=": ne, ">=": ge, ">": gt}
-
     for filename in files:
         print(filename)
         data = pd.read_csv(filename, index_col="Index")
-        #data = data.loc[ops[filter_comparison[1]](data[filter_comparison[0]], filter_comparison[2])]
-        data.reset_index(inplace=True)
         if subsample < 1:
             sample_index = int(np.round(data.shape[0] * subsample))
             sample_indices = np.sort(np.random.permutation(np.arange(data.shape[0]))[:sample_index])
@@ -401,25 +439,128 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
                                                                   output_var].values.reshape(-1, 1),
                                                                   output_transforms[output_var],
                                                                   output_scalers=output_scalers[output_var])
-    print("Scaling data")
-    print(combined_input_data.shape)
     if train:
         scaled_input_data = pd.DataFrame(input_scaler.fit_transform(combined_input_data),
                                          columns=combined_input_data.columns)
     else:
         scaled_input_data = pd.DataFrame(input_scaler.transform(combined_input_data),
                                          columns=combined_input_data.columns)
-    return scaled_input_data, output_labels, transformed_output_data, scaled_output_data, output_scalers, combined_meta_data
+    return scaled_input_data, output_labels, transformed_output_data, \
+           scaled_output_data, output_scalers, combined_meta_data
 
 
-def log10_transform(x, eps=1e-15):
-    return np.log10(np.maximum(x, eps))
+def uniform_stratify_data(output_labels, scaled_output_data, category_size, output_bin_dict):
+    """
+    Resample data to have uniform sample sizes across different labels and across different bins.
+
+    Args:
+        output_labels: DataFrame of label values for each example.
+        scaled_output_data: Normalized output values for each label
+        category_size: Number of samples per label in each output
+        output_bin_dict: Dictionary of bins for each output type and label.
+
+    Returns:
+        Resampled indices for each output type and label.
+    """
+    sampling_indices = dict()
+    out_index = output_labels.index.values
+    for output_col in output_labels.columns:
+        print(output_col)
+        sampling_indices[output_col] = dict()
+        label_vals = np.unique(output_labels[output_col])
+        for label_val in label_vals:
+            print(label_val)
+            label_count = np.count_nonzero(output_labels[output_col] == label_val)
+            if label_count < category_size:
+                label_replace = True
+            else:
+                label_replace = False
+            if label_val == 0:
+                sampling_indices[output_col][label_val] = np.random.choice(out_index[output_labels[output_col] == label_val],
+                                                                           size=category_size, replace=label_replace)
+            else:
+                label_bins = output_bin_dict[output_col][label_val]
+                scaled_hist, _ = np.histogram(scaled_output_data[output_col][output_labels[output_col] == label_val],
+                                              bins=label_bins)
+                uniform_bin_size = category_size // scaled_hist.size
+                sampling_indices[output_col][label_val] = np.zeros(category_size)
+                s_index = 0
+                for b in range(label_bins.size - 1):
+                    if scaled_hist[b] < uniform_bin_size:
+                        bin_replace = True
+                    else:
+                        bin_replace = False
+                    out_sample_indices = out_index[(output_labels[output_col] == label_val) &
+                                                   (scaled_output_data[output_col] >= label_bins[b]) &
+                                                   (scaled_output_data[output_col] < label_bins[b + 1])]
+                    print(b, label_bins[b], out_sample_indices.size)
+                    sampling_indices[output_col][label_val][s_index:s_index + uniform_bin_size] = \
+                        np.random.choice(out_sample_indices,
+                                         size=uniform_bin_size,
+                                         replace=bin_replace)
+    return sampling_indices
 
 
-def neg_log10_transform(x, eps=1e-15):
-    return np.log10(np.maximum(-x, eps))
+def inverse_transform_data(data, transform_dict):
+    """
+    Reconstruct original data values from partially log-transformed data
+
+    Args:
+        data: pandas DataFrame containing log-transformed data
+        transform_dict: dictionary mapping variable names in data to the type of transformation
+    Returns:
+        out_data: pandas DataFrame with data as close to original form as possible. Values below
+            the eps threshold will be set to the eps threshold.
+    """
+    out_data = pd.DataFrame(data.values, columns=data.columns, index=data.index)
+    for var, transform_name in transform_dict.items():
+        if var in out_data.columns:
+            out_data.loc[:, var] = inverse_transforms[transform_name](data[var])
+    return out_data
+
+def repopulate_input_scaler(scale_file, scaler_type="StandardScaler"):
+    """
+    Given a csv file containing scaling values, repopulate a scikit-learn
+    scaling object with those same values.
+
+    Args:
+        scale_file (str): path to csv file containing scale values
+        scaler_type (str):
+
+    Returns:
+        scaler_obj: Scaler Object with normalizing values specified.
+    """
+    scaler_obj = scalers[scaler_type]()
+    scale_data = pd.read_csv(scale_file)
+    for column in scale_data.columns[1:]:
+        setattr(scaler_obj, column + "_", scale_data[column].values)
+    return scaler_obj
 
 
-def zero_transform(x, eps=1e-15):
-    return np.zeros(x.shape, dtype=np.float32)
+def repopulate_output_scalers(scale_file, output_transforms):
+    """
+    From an output_scale_values.csv file, repopulate the scikit-learn
+    scaling objects for each output type.
+
+    Args:
+        scale_file:
+        output_transforms:
+
+    Returns:
+
+    """
+    scale_data = pd.read_csv(scale_file, index_col="output")
+    output_scalers = {}
+    for out_var in output_transforms.keys():
+        output_scalers[out_var] = {}
+        for out_label, transform in output_transforms[out_var].items():
+            if transform[2] == "None":
+                output_scalers[out_var][out_label] = None
+            else:
+                output_scalers[out_var][out_label] = scalers[transform[2]]()
+                for col in scale_data.columns:
+                    setattr(output_scalers[out_var][out_label],
+                            col, scale_data.loc[out_var, col])
+    return output_scalers
+
 
