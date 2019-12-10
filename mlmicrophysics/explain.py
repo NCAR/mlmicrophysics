@@ -4,10 +4,10 @@ import pandas as pd
 import traceback
 import matplotlib.pyplot as plt
 from copy import deepcopy
-from .call_collect import call_collect
 
 
-def feature_importance(x, y, model, metric_function, x_columns=None, permutations=30, processes=1, seed=8272):
+def feature_importance(x, y, model, metric_function, x_columns=None, permutations=30, processes=1,
+                       col_start="perm_", seed=8272):
     """
     Calculate permutation feature importance scores for an arbitrary machine learning model.
 
@@ -19,6 +19,7 @@ def feature_importance(x, y, model, metric_function, x_columns=None, permutation
         x_columns (ndarray or None): list or array of column names. If not provided, indices will be used instead.
         permutations (int): Number of times a column is randomly shuffled.
         processes (int): Number of multiprocessor processes used for parallel computation of importances
+        col_start (str): Start of output columns.
         seed (int): Random seed.
 
     Returns:
@@ -51,7 +52,8 @@ def feature_importance(x, y, model, metric_function, x_columns=None, permutation
                                                metric_function, np.random.randint(0, 100000))
             update_perm_matrix(result)
     diff_matrix = score - perm_matrix
-    return pd.DataFrame(diff_matrix, index=x_columns, columns=np.arange(permutations))
+    out_columns = col_start + pd.Series(np.arange(permutations)).astype(str)
+    return pd.DataFrame(diff_matrix, index=x_columns, columns=out_columns)
 
 
 def feature_importance_column(x, y, column_index, permutations, model, metric_function, seed):
@@ -140,9 +142,9 @@ def partial_dependence_1d_mp(x, split_start, split_end, var_index=0, model_file=
         from keras.models import load_model
         import tensorflow as tf
         import keras.backend as K
-        sess = tf.Session(config=tf.ConfigProto(device_count={"CPU": 1}, intra_op_parallelism_threads=1,
-                            inter_op_parallelism_threads=1))
-        K.set_session(sess)
+        #sess = tf.Session(config=tf.ConfigProto(device_count={"CPU": 1}, intra_op_parallelism_threads=1,
+        #                    inter_op_parallelism_threads=1))
+        #K.set_session(sess)
         with tf.device("/cpu:0"):
             model = load_model(model_file)
             partial_dependence = np.zeros((var_vals.shape[1], x.shape[0]), dtype=np.float32)
@@ -194,6 +196,7 @@ def partial_dependence_1d_tau(x, split_start, split_end, var_vals):
         Array of partial dependence values.
     """
     try:
+        from .call_collect import call_collect
         tau_outputs = 4
         partial_dependence = np.zeros((x.shape[1], var_vals.shape[1], tau_outputs, x.shape[0]), dtype=np.float32)
         x_copy = np.copy(x)
