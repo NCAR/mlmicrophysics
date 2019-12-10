@@ -1,8 +1,8 @@
-from keras.layers import Input, Dense, Dropout, GaussianNoise, Activation, Concatenate, BatchNormalization
-from keras.models import Model
-from keras.regularizers import l2
-from keras.optimizers import Adam, SGD
-import keras.backend as K
+from tensorflow.keras.layers import Input, Dense, Dropout, GaussianNoise, Activation, Concatenate, BatchNormalization
+from tensorflow.keras.models import Model
+from tensorflow.keras.regularizers import l2
+from tensorflow.keras.optimizers import Adam, SGD
+import tensorflow.keras.backend as K
 import numpy as np
 import xarray as xr
 import pandas as pd

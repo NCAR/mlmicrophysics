@@ -162,7 +162,7 @@ subroutine stochastic_kernel_init
 
     integer :: idd, jdd
     real(r8) :: kkfac
-
+    character(len=128) :: prefix
     call calc_bins
 
 
@@ -171,7 +171,8 @@ subroutine stochastic_kernel_init
 
      KNN(:,:)=0._r8 ! initialize values
      kkfac=1.5_r8   ! from Zach
-     open(unit=40,file='/glade/u/home/cchen/forDJ/v3/KBARF',status='old')
+     call getenv("HOME", prefix)
+     open(unit=40,file=trim(prefix) // '/mlmicrophysics/mlmicrophysics/KBARF',status='old')
 
  941 FORMAT(2X,E12.5)
 
@@ -192,13 +193,44 @@ end subroutine stochastic_kernel_init
 !needs to pull in i,k fields (so might need dimensions here too)
 
 subroutine stochastic_collect_tau_tend(deltatin, t,rho, qc, qr, qcin,ncin,qrin,nrin, lcldm, precip_frac, &
-!                                       mu_c, lambda_c, n0r, lambda_r, &
                                        qcin_new,ncin_new,qrin_new,nrin_new, &
 !                                       qctend,nctend,qrtend,nrtend,qctend_TAU,nctend_TAU,qrtend_TAU,nrtend_TAU, &
                                        qctend_TAU,nctend_TAU,qrtend_TAU,nrtend_TAU, &
                                        scale_qc,scale_nc,scale_qr,scale_nr, &
                                        amk_c, ank_c, amk_r, ank_r, amk, ank, amk_out, ank_out, gmnnn_lmnnn_TAU, mgncol)
-
+!deltatin = 1800 seconds
+!t = atmospheric temperature
+!rho = density of air
+!qc = cloud liquid mixing ratio
+!qr = rain water mixing ratio
+!qcin = in-cloud cloud liquid mixing ratio (= qc/cloud fraction)
+!ncin = in-cloud cloud liquid number concentration
+!qrin = in-cloud rain water mixing ratio (= qr/cloud fraction)
+!nrin = in-cloud rain water number concentration
+!lcldm = cloud fraction
+!precip_frac = precipitation fraction (=cloud fraction)
+!mu_c, lambda_c = parameters for cloud liquid size distribution (output from the code)
+!n0r, lambda_r = parameters for rain water size distribution (output from the code)
+!qcin_new = updated in-cloud cloud liquid mixing ratio after bin code (output)
+!ncin_new = updated in-cloud cloud liquid number concentration after bin code (output)
+!qrin_new = updated in-cloud rain water mixing ratio after bin code (output)
+!nrin_new = updated in-cloud rain water mixing ratio after bin code (output)
+!qctend_TAU = qc tenddency by bin code (output)
+!nctend_TAU = nc tendency by bin code (output)
+!qrtend_TAU = qr tendency by bin code (output)
+!nrtend_TAU = nr tendency by bin code (output)
+!scale_qc= scaling factor for the discretized size distribution across all bins to match qc (output)
+!scale_nc= scaling factor for the discretized size distribution across all bins to match nc (output)
+!scale_qr= scaling factor for the discretized size distribution across all bins to match qr (output)
+!scale_nr= scaling factor for the discretized size distribution across all bins to match nr (output)
+!amk_c = mass within each bin for cloud liquid (output)
+!ank_c = number concentration within each bin for cloud liquid (output)
+!amk_r = mass within each bin for rain water (output)
+!ank_r = number concentration within each bin for rain water (ooutput)
+!amk = mass within each bin for cloud liquid+rain water (output)
+!ank = number concentration within each bin for cloud liquid+rain water (output)
+!gmnnn_lmnnn_TAU = total mass tendency across all bins by bin code (output, for checking mass conservation)
+!mgncol = number of microphysical columns
 
 !use micro_mg_utils, only: &
 !       mg_liq_props, &
