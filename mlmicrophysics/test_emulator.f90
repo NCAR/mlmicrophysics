@@ -1,10 +1,10 @@
 program test_emulator
-use tau_neural_net
+use tau_neural_net_batch
 implicit none
 integer, parameter :: mgncol=5
 real(r8), dimension(mgncol) :: qc, nc, qr, nr, rho, qc_tend, qr_tend, nc_tend, &
     nr_tend, lamc, lamr, lcldm, n0r, pgam, precip_frac
-real(r8) :: qsmall
+real(r8) :: qsmall, t_start, t_end
 integer :: i
 print *, "load emulators"
 call initialize_tau_emulators
@@ -22,10 +22,13 @@ pgam = (/ 10.0_r8, 50.0_r8, 25.0_r8, 19.0_r8, 100.0_r8 /)
 precip_frac = (/ 0.3_r8, 0.4_r8, 0.5_r8, 0.6_r8, 0.7_r8 /)
 qsmall = 1.0e-18_r8
 print *, qc
+call cpu_time(t_start)
 call tau_emulate_cloud_rain_interactions(qc, nc, qr, nr, rho, lamc, lamr, lcldm, &
                                          n0r, pgam, precip_frac, qsmall, mgncol, &
                                          qc_tend, qr_tend, nc_tend, nr_tend)
+call cpu_time(t_end)
+print *, "Timing: ", t_end - t_start
 do i=1,mgncol
-    print *, qr_tend(i), nc_tend(i), nr_tend(i)
+    print *, qc_tend(i), qr_tend(i), nc_tend(i), nr_tend(i)
 end do
 end program test_emulator

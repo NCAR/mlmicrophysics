@@ -50,16 +50,6 @@ def main():
                                      output_transforms, input_scaler,
                                      output_scalers=output_scalers,
                                      subsample=subsample, train=False)
-
-    print("Loading testing data")
-    scaled_input_test, \
-    labels_test, \
-    transformed_out_test, \
-    scaled_out_test, \
-    output_scalers_test, \
-    meta_test = assemble_data_files(test_files, input_cols, output_cols, input_transforms,
-                                    output_transforms, input_scaler, output_scalers=output_scalers,
-                                    train=False, subsample=subsample)
     if args.pdp:
         model_files = sorted(glob(join(out_path, "*.h5")))
         pd_model_vals = {}
@@ -72,6 +62,7 @@ def main():
                                                                      model_file,
                                                                      partial_dependence_config["var_val_count"],
                                                                      args.procs)
+
         transformed_input_train = input_scaler.inverse_transform(scaled_input_train)
         raw_input_train = inverse_transform_data(transformed_input_train, input_transforms)
         pd_tau_vals, pd_tau_var_vals = partial_dependence_tau_mp(raw_input_train,
@@ -81,6 +72,9 @@ def main():
 
     return
 
+
+def output_pd_vals_netcdf():
+    return
 
 if __name__ == "__main__":
     main()
