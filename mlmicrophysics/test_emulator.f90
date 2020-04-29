@@ -1,5 +1,5 @@
 program test_emulator
-use tau_neural_net
+use tau_neural_net_batch
 implicit none
 integer, parameter :: mgncol=5
 real(r8), dimension(mgncol) :: qc, nc, qr, nr, rho, qc_tend, qr_tend, nc_tend, &
@@ -26,6 +26,6 @@ call tau_emulate_cloud_rain_interactions(qc, nc, qr, nr, rho, lamc, lamr, lcldm,
                                          n0r, pgam, precip_frac, qsmall, mgncol, &
                                          qc_tend, qr_tend, nc_tend, nr_tend)
 do i=1,mgncol
-    print *, qr_tend(i), nc_tend(i), nr_tend(i)
+    print *, qc_tend(i), qr_tend(i), nc_tend(i), nr_tend(i)
 end do
 end program test_emulator
