@@ -1,11 +1,12 @@
-module tau_neural_net
-    use neuralnet
+module tau_neural_net_batch
+    use module_neural_net
     implicit none
     integer, parameter, public :: r8 = selected_real_kind(12)
     integer, parameter, public :: i8 = selected_int_kind(18)
     character(len=*), parameter :: neural_net_path = "/glade/p/cisl/aiml/dgagne/cam_run5_models_20190726/"
     integer, parameter :: num_inputs = 11
     integer, parameter :: num_outputs = 4
+    integer, parameter :: batch_size = 1
     type tau_emulators
         type(Dense), allocatable :: qr_classifier(:)
         type(Dense), allocatable :: qr_regressor(:)
@@ -22,27 +23,14 @@ module tau_neural_net
     real(r8), dimension(11, 2), save :: input_scale_values
     real(r8), dimension(4, 2), save :: output_scale_values
     contains
-        subroutine load_scale_values
+        subroutine load_mp_scale_values
             ! Reads csv files containing means and standard deviations for the inputs and outputs
             ! of each neural network
             ! neural_net_path: Path to directory containing neural net netCDF files and scaling csv files.
             ! character(len=*), intent(in) :: neural_net_path
-            integer :: isu, osu, i
-            character(len=13) :: row_name
-            isu = 20
-            osu = 25
-            open(isu, file=neural_net_path // "input_scale_values.csv", access="sequential", form="formatted")
-            read(isu, "(A)")
-            do i=1, num_inputs
-                read(isu, *) row_name, input_scale_values(i, 1), input_scale_values(i, 2)
-            end do
-            close(isu)
-            open(osu, file=neural_net_path // "output_scale_values.csv", access="sequential", form="formatted")
-            read(osu, "(A)")
-            do i=1, num_outputs
-                read(osu, *)  row_name, output_scale_values(i, 1), output_scale_values(i, 2)
-            end do
-            close(osu)
+            integer :: i
+            call load_scale_values(neural_net_path // "input_scale_values.csv", num_inputs, input_scale_values)
+            call load_scale_values(neural_net_path // "output_scale_values.csv", num_outputs, output_scale_values)
             print *, "Input Scale Values"
             do i=1, num_inputs
                 print *, input_scale_values(i, 1), input_scale_values(i, 2)
@@ -51,7 +39,7 @@ module tau_neural_net
             do i=1, num_outputs
                 print *, output_scale_values(i, 1), output_scale_values(i, 2)
             end do
-        end subroutine load_scale_values
+        end subroutine load_mp_scale_values
 
         subroutine initialize_tau_emulators
             ! Load neural network netCDF files and scaling values. Values are placed in to emulators,
@@ -61,15 +49,15 @@ module tau_neural_net
             !
             !character(len=*), intent(in) :: neural_net_path
             ! Load each neural network from the neural net directory
-            call init_neuralnet(neural_net_path // "dnn_qr_class_fortran.nc", emulators%qr_classifier)
-            call init_neuralnet(neural_net_path // "dnn_qr_pos_fortran.nc", emulators%qr_regressor)
-            call init_neuralnet(neural_net_path // "dnn_nr_class_fortran.nc", emulators%nr_classifier)
-            call init_neuralnet(neural_net_path // "dnn_nr_neg_fortran.nc", emulators%nr_neg_regressor)
-            call init_neuralnet(neural_net_path // "dnn_nr_pos_fortran.nc", emulators%nr_pos_regressor)
-            call init_neuralnet(neural_net_path // "dnn_nc_class_fortran.nc", emulators%nc_classifier)
-            call init_neuralnet(neural_net_path // "dnn_nc_pos_fortran.nc", emulators%nc_regressor)
+            call init_neural_net(neural_net_path // "dnn_qr_class_fortran.nc", batch_size, emulators%qr_classifier)
+            call init_neural_net(neural_net_path // "dnn_qr_pos_fortran.nc", batch_size, emulators%qr_regressor)
+            call init_neural_net(neural_net_path // "dnn_nr_class_fortran.nc", batch_size, emulators%nr_classifier)
+            call init_neural_net(neural_net_path // "dnn_nr_neg_fortran.nc", batch_size, emulators%nr_neg_regressor)
+            call init_neural_net(neural_net_path // "dnn_nr_pos_fortran.nc", batch_size, emulators%nr_pos_regressor)
+            call init_neural_net(neural_net_path // "dnn_nc_class_fortran.nc", batch_size, emulators%nc_classifier)
+            call init_neural_net(neural_net_path // "dnn_nc_pos_fortran.nc", batch_size, emulators%nc_regressor)
             ! Load the scale values from a csv file.
-            call load_scale_values
+            call load_mp_scale_values
         end subroutine initialize_tau_emulators
 
 
@@ -101,7 +89,6 @@ module tau_neural_net
             real(r8), dimension(:, :), allocatable :: nz_qr_prob, nz_nr_prob, nz_nc_prob
             real(r8), dimension(:, :), allocatable :: qr_tend_log_norm, nc_tend_log_norm, nr_tend_log_norm
             real(r8) :: log_eps = 1.0e-40
-
             do i=1, mgncol
                 if ((qc(i) >= q_small) .or. (qr(i) >= q_small)) then
                     nn_inputs = reshape((/ qc(i), nc(i), qr(i), nr(i), rho(i), &
@@ -117,40 +104,40 @@ module tau_neural_net
                         end if
                     end do
                     ! calculate the qr and qc tendencies
-                    call neuralnet_predict(emulators%qr_classifier, nn_inputs_log_norm, nz_qr_prob)
+                    call neural_net_predict(nn_inputs_log_norm, emulators%qr_classifier, nz_qr_prob)
                     qr_class = maxloc(pack(nz_qr_prob, .true.), 1)
                     !print*, "qr_prob", nz_qr_prob, qr_class
                     if (qr_class == 1) then
                         qr_tend(i) = 0._r8
                         qc_tend(i) = 0._r8
                     else
-                        call neuralnet_predict(emulators%qr_regressor, nn_inputs_log_norm, qr_tend_log_norm)
+                        call neural_net_predict(nn_inputs_log_norm, emulators%qr_regressor, qr_tend_log_norm)
                         qr_tend(i) = 10 ** (qr_tend_log_norm(1, 1) * output_scale_values(1, 2) + output_scale_values(1, 1))
                         qc_tend(i) = -qr_tend(i)
                     end if
                     ! calculate the nc tendency
-                    call neuralnet_predict(emulators%qr_classifier, nn_inputs_log_norm, nz_nc_prob)
+                    call neural_net_predict(nn_inputs_log_norm, emulators%qr_classifier, nz_nc_prob)
                     nc_class = maxloc(pack(nz_nc_prob, .true.), 1)
                     if (nc_class == 1) then
                         nc_tend(i) = 0._r8
                     else
-                        call neuralnet_predict(emulators%nc_regressor, nn_inputs_log_norm, nc_tend_log_norm)
+                        call neural_net_predict(nn_inputs_log_norm, emulators%nc_regressor, nc_tend_log_norm)
                         nc_tend(i) = -10 ** (nc_tend_log_norm(1, 1) * output_scale_values(2, 2) + &
                                 output_scale_values(2, 1))
                     end if
                     ! calculate the nr tendency
-                    call neuralnet_predict(emulators%nr_classifier, nn_inputs_log_norm, nz_nr_prob)
+                    call neural_net_predict(nn_inputs_log_norm, emulators%nr_classifier, nz_nr_prob)
                     nr_class = maxloc(pack(nz_nr_prob, .true.), 1)
                     !print*, "nr_prob", nz_nr_prob, nr_class
                     ! print *, "Classes", qr_class, nc_class, nr_class
                     if (nr_class == 2) then
                         nr_tend(i) = 0._r8
                     elseif (nr_class == 1) then
-                        call neuralnet_predict(emulators%nr_neg_regressor, nn_inputs_log_norm, nr_tend_log_norm)
+                        call neural_net_predict(nn_inputs_log_norm, emulators%nr_neg_regressor, nr_tend_log_norm)
                         nr_tend(i) = -10 ** (nr_tend_log_norm(1, 1) * output_scale_values(3, 2) + &
                                 output_scale_values(3, 1))
                     else
-                        call neuralnet_predict(emulators%nr_pos_regressor, nn_inputs_log_norm, nr_tend_log_norm)
+                        call neural_net_predict(nn_inputs_log_norm, emulators%nr_pos_regressor,  nr_tend_log_norm)
                         nr_tend(i) = 10 ** (nr_tend_log_norm(1, 1) * output_scale_values(4, 2) + &
                                 output_scale_values(4, 1))
                     end if
@@ -163,4 +150,4 @@ module tau_neural_net
             end do
         end subroutine tau_emulate_cloud_rain_interactions
 
-end module tau_neural_net
+end module tau_neural_net_batch
