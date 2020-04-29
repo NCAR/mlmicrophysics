@@ -110,13 +110,12 @@ contains
         type(Dense), allocatable, intent(out) :: neural_net_model(:)
         integer :: ncid, num_layers_id, num_layers
         integer :: layer_names_var_id, i, layer_in_dimid, layer_out_dimid
-        integer :: layer_in_dim, layer_out_dim, s
+        integer :: layer_in_dim, layer_out_dim
         integer :: layer_weight_var_id
         integer :: layer_bias_var_id
         character(len=8), allocatable :: layer_names(:)
         character(len=10) :: num_layers_dim_name = "num_layers"
         character(len=11) :: layer_name_var = "layer_names"
-        character(len=10) :: layer_name
         character (len=11) :: layer_in_dim_name
         character (len=12) :: layer_out_dim_name
         real (kind=8), allocatable :: temp_weights(:, :)
@@ -183,7 +182,7 @@ contains
         real(kind=8), allocatable, intent(out) :: prediction(:, :)
         real(kind=8), allocatable :: hidden_in(:, :)
         real(kind=8), allocatable :: hidden_out(:, :)
-        integer :: i, j, k
+        integer :: i
         allocate(hidden_in(size(input, 1), size(input, 2)))
         hidden_in = input
         do i=1, size(neuralnet_model, 1)

@@ -119,7 +119,7 @@ module tau_neural_net
                     ! calculate the qr and qc tendencies
                     call neuralnet_predict(emulators%qr_classifier, nn_inputs_log_norm, nz_qr_prob)
                     qr_class = maxloc(pack(nz_qr_prob, .true.), 1)
-                    !print*, "qr_prob", nz_qr_prob, qr_class
+                    print*, "qr_prob", nz_qr_prob, qr_class
                     if (qr_class == 1) then
                         qr_tend(i) = 0._r8
                         qc_tend(i) = 0._r8

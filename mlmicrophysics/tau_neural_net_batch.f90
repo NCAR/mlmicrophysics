@@ -31,14 +31,14 @@ module tau_neural_net_batch
             integer :: i
             call load_scale_values(neural_net_path // "input_scale_values.csv", num_inputs, input_scale_values)
             call load_scale_values(neural_net_path // "output_scale_values.csv", num_outputs, output_scale_values)
-            print *, "Input Scale Values"
-            do i=1, num_inputs
-                print *, input_scale_values(i, 1), input_scale_values(i, 2)
-            end do
-            print *, "Output Scale Values"
-            do i=1, num_outputs
-                print *, output_scale_values(i, 1), output_scale_values(i, 2)
-            end do
+            !print *, "Input Scale Values"
+            !do i=1, num_inputs
+            !    print *, input_scale_values(i, 1), input_scale_values(i, 2)
+            !end do
+            !print *, "Output Scale Values"
+            !do i=1, num_outputs
+            !    print *, output_scale_values(i, 1), output_scale_values(i, 2)
+            !end do
         end subroutine load_mp_scale_values
 
         subroutine initialize_tau_emulators
@@ -86,8 +86,8 @@ module tau_neural_net_batch
             integer(i8) :: i, j, qr_class, nc_class, nr_class
             real(r8), dimension(1, num_inputs) :: nn_inputs, nn_inputs_log_norm
             integer, dimension(num_inputs) :: log_inputs
-            real(r8), dimension(:, :), allocatable :: nz_qr_prob, nz_nr_prob, nz_nc_prob
-            real(r8), dimension(:, :), allocatable :: qr_tend_log_norm, nc_tend_log_norm, nr_tend_log_norm
+            real(r8), dimension(batch_size, 2) :: nz_qr_prob, nz_nr_prob, nz_nc_prob
+            real(r8), dimension(batch_size, 1) :: qr_tend_log_norm, nc_tend_log_norm, nr_tend_log_norm
             real(r8) :: log_eps = 1.0e-40
             do i=1, mgncol
                 if ((qc(i) >= q_small) .or. (qr(i) >= q_small)) then
@@ -106,7 +106,6 @@ module tau_neural_net_batch
                     ! calculate the qr and qc tendencies
                     call neural_net_predict(nn_inputs_log_norm, emulators%qr_classifier, nz_qr_prob)
                     qr_class = maxloc(pack(nz_qr_prob, .true.), 1)
-                    !print*, "qr_prob", nz_qr_prob, qr_class
                     if (qr_class == 1) then
                         qr_tend(i) = 0._r8
                         qc_tend(i) = 0._r8

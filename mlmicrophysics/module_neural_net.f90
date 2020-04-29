@@ -155,7 +155,7 @@ contains
         call check(nf90_inq_varid(ncid, layer_name_var, layer_names_var_id))
         allocate(layer_names(num_layers))
         call check(nf90_get_var(ncid, layer_names_var_id, layer_names))
-        print *, "load neural network " // filename
+        !print *, "load neural network " // filename
         allocate(neural_net_model(1:num_layers))
         ! Loop through each layer and load the weights, bias term, and activation function
         do i=1, num_layers
@@ -212,7 +212,7 @@ contains
                     neural_net_model(i)%activation = 7
             end select
         end do
-        print *, "finished loading neural network " // filename
+        !print *, "finished loading neural network " // filename
         call check(nf90_close(ncid))
 
     end subroutine init_neural_net
