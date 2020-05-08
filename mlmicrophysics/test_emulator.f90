@@ -5,7 +5,7 @@ integer, parameter :: mgncol=5
 real(r8), dimension(mgncol) :: qc, nc, qr, nr, rho, qc_tend, qr_tend, nc_tend, &
     nr_tend, lamc, lamr, lcldm, n0r, pgam, precip_frac
 real(r8) :: qsmall, t_start, t_end
-integer :: i
+integer :: i, num_loops, t
 print *, "load emulators"
 call initialize_tau_emulators
 print *, "loaded emulators"
@@ -21,11 +21,14 @@ n0r = (/ 0.5e5_r8, 1.0e6_r8, 1.1e7_r8, 1.12e3_r8, 2.0e4_r8 /)
 pgam = (/ 10.0_r8, 50.0_r8, 25.0_r8, 19.0_r8, 100.0_r8 /)
 precip_frac = (/ 0.3_r8, 0.4_r8, 0.5_r8, 0.6_r8, 0.7_r8 /)
 qsmall = 1.0e-18_r8
+num_loops = 1000
 print *, qc
 call cpu_time(t_start)
+do t=1,num_loops
 call tau_emulate_cloud_rain_interactions(qc, nc, qr, nr, rho, lamc, lamr, lcldm, &
                                          n0r, pgam, precip_frac, qsmall, mgncol, &
                                          qc_tend, qr_tend, nc_tend, nr_tend)
+end do
 call cpu_time(t_end)
 print *, "Timing: ", t_end - t_start
 do i=1,mgncol

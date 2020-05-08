@@ -100,7 +100,7 @@ module tau_neural_net
             integer, dimension(num_inputs) :: log_inputs
             real(r8), dimension(:, :), allocatable :: nz_qr_prob, nz_nr_prob, nz_nc_prob
             real(r8), dimension(:, :), allocatable :: qr_tend_log_norm, nc_tend_log_norm, nr_tend_log_norm
-            real(r8) :: log_eps = 1.0e-40
+            real(r8) :: log_eps = 1.0e-30
 
             do i=1, mgncol
                 if ((qc(i) >= q_small) .or. (qr(i) >= q_small)) then
