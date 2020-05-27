@@ -9,9 +9,12 @@ module module_neural_net
         integer :: activation
         real(kind=8), allocatable :: weights(:, :)
         real(kind=8), allocatable :: bias(:)
+    end type Dense
+
+    type DenseData
         real(kind=8), allocatable :: input(:, :)
         real(kind=8), allocatable :: output(:, :)
-    end type Dense
+    end type DenseData
 
 contains
 
@@ -201,8 +204,6 @@ contains
             call check(nf90_get_var(ncid, layer_weight_var_id, &
                                     temp_weights))
             neural_net_model(i)%weights = transpose(temp_weights)
-            allocate(neural_net_model(i)%input(batch_size, layer_in_dim))
-            allocate(neural_net_model(i)%output(batch_size, layer_out_dim))
             deallocate(temp_weights)
             ! Load the bias weights
             allocate(neural_net_model(i)%bias(layer_out_dim))
@@ -246,12 +247,14 @@ contains
         real(kind=8), intent(in) :: input(:, :)
         type(Dense), intent(inout) :: neural_net_model(:)
         real(kind=8), intent(out) :: prediction(size(input, 1), neural_net_model(size(neural_net_model))%output_size)
-        integer :: bi, i
+        integer :: bi, i, j, num_layers
         integer :: batch_size
         integer :: input_size
         integer :: batch_index_size
         integer, allocatable :: batch_indices(:)
+        type(DenseData) :: neural_net_data(size(neural_net_model))
         input_size = size(input, 1)
+        num_layers = size(neural_net_model)
         batch_size = neural_net_model(1)%batch_size
         batch_index_size = input_size / batch_size
         allocate(batch_indices(batch_index_size))
@@ -260,16 +263,26 @@ contains
             batch_indices(i) = bi
             i = i + 1
         end do
+        do j=1, num_layers
+            allocate(neural_net_data(j)%input(batch_size, neural_net_model(j)%input_size))
+            allocate(neural_net_data(j)%output(batch_size, neural_net_model(j)%output_size))
+        end do
         batch_indices(batch_index_size) = input_size
         do bi=1, batch_index_size
-            neural_net_model(1)%input = input(batch_indices(bi)-batch_size+1:batch_indices(bi), :)
-            do i=1, size(neural_net_model) - 1
-                call apply_dense(neural_net_model(i)%input, neural_net_model(i), neural_net_model(i)%output)
-                neural_net_model(i + 1)%input = neural_net_model(i)%output
+            neural_net_data(1)%input = input(batch_indices(bi)-batch_size+1:batch_indices(bi), :)
+            do i=1, num_layers - 1
+                call apply_dense(neural_net_data(i)%input, neural_net_model(i), neural_net_data(i)%output)
+                neural_net_data(i + 1)%input = neural_net_data(i)%output
             end do
-                call apply_dense(neural_net_model(i)%input, neural_net_model(i), neural_net_model(i)%output)
-            prediction(batch_indices(bi)-batch_size + 1:batch_indices(bi), :) = neural_net_model(size(neural_net_model))%output
+            call apply_dense(neural_net_data(num_layers)%input, neural_net_model(num_layers), &
+                             neural_net_data(num_layers)%output)
+            prediction(batch_indices(bi)-batch_size + 1:batch_indices(bi), :) = &
+                    neural_net_data(num_layers)%output
         !    print*,"Prediction", prediction(batch_indices(bi)-batch_size + 1:batch_indices(bi), :)
+        end do
+        do j=1, num_layers
+            deallocate(neural_net_data(j)%input)
+            deallocate(neural_net_data(j)%output)
         end do
         deallocate(batch_indices)
     end subroutine neural_net_predict
