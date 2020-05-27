@@ -32,6 +32,6 @@ end do
 call cpu_time(t_end)
 print *, "Timing: ", t_end - t_start
 do i=1,mgncol
-    print *, qc_tend(i), qr_tend(i), nc_tend(i), nr_tend(i)
+    print *, qr_tend(i), nc_tend(i), nr_tend(i)
 end do
 end program test_emulator

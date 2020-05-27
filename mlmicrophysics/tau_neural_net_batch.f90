@@ -107,24 +107,19 @@ module tau_neural_net_batch
                         end if
                     end do
                     ! calculate the qr and qc tendencies
-                    print*, "neural nets qr prob"
                     call neural_net_predict(nn_inputs_log_norm, emulators%qr_classifier, nz_qr_prob)
                     qr_class = maxloc(pack(nz_qr_prob, .true.), 1)
-                    print*, "neural nets qr prob and class", nz_qr_prob, qr_class
                     if (qr_class == 1) then
                         qr_tend(i) = 0._r8
                         qc_tend(i) = 0._r8
                     else
-                        print*, "neural nets qr pred"
                         call neural_net_predict(nn_inputs_log_norm, emulators%qr_regressor, qr_tend_log_norm)
                         qr_tend(i) = 10 ** (qr_tend_log_norm(1, 1) * output_scale_values(1, 2) + output_scale_values(1, 1))
                         qc_tend(i) = -qr_tend(i)
-                        print*, "neural nets qr out ", qr_tend(i)
                     end if
                     ! calculate the nc tendency
                     call neural_net_predict(nn_inputs_log_norm, emulators%nc_classifier, nz_nc_prob)
                     nc_class = maxloc(pack(nz_nc_prob, .true.), 1)
-                    print*, "neural nets nc prob and class", nz_nc_prob, nc_class
                     if (nc_class == 1) then
                         nc_tend(i) = 0._r8
                     else
@@ -135,7 +130,6 @@ module tau_neural_net_batch
                     ! calculate the nr tendency
                     call neural_net_predict(nn_inputs_log_norm, emulators%nr_classifier, nz_nr_prob)
                     nr_class = maxloc(pack(nz_nr_prob, .true.), 1)
-                    print*, "neural nets nr prob and class", nz_nr_prob, nr_class
                     if (nr_class == 2) then
                         nr_tend(i) = 0._r8
                     elseif (nr_class == 1) then
