@@ -43,8 +43,7 @@ def main():
                                      out_format=config["out_format"])
     else:
         cluster = LocalCluster(n_workers=0)
-        for i in range(args.proc):
-            cluster.start_worker(ncores=1)
+        cluster.scale(args.proc)
         client = Client(cluster)
         print(client)
         futures = client.map(process_cesm_file_subset, filenames,
