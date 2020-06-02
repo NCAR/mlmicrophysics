@@ -31,7 +31,7 @@ def main():
     parser.add_argument("config", help="Path to config file")
     args = parser.parse_args()
     with open(args.config) as config_file:
-        config = yaml.load(config_file)
+        config = yaml.load(config_file, Loader=yaml.FullLoader)
     data_path = config["data_path"]
     out_path = config["out_path"]
     input_cols = config["input_cols"]

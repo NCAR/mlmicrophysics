@@ -272,7 +272,7 @@ def subset_data_files_by_date(data_path, data_end,
     test_ind = np.where((file_times >= test_date_start) & (file_times <= test_date_end))[0]
     val_ind = train_val_ind[::validation_frequency]
     train_ind = np.isin(train_val_ind, val_ind, invert=True)
-    train_files = csv_files.loc[train_ind]
+    train_files = csv_files.loc[train_val_ind[train_ind]]
     val_files = csv_files.loc[val_ind]
     test_files = csv_files.loc[test_ind]
     return train_files, val_files, test_files
