@@ -42,7 +42,7 @@ def main():
     subsample = config["subsample"]
     if not exists(out_path):
         os.makedirs(out_path)
-    train_files, val_files, test_files = subset_data_files_by_date(data_path, "*.csv", **config["subset_data"])
+    train_files, val_files, test_files = subset_data_files_by_date(data_path, **config["subset_data"])
     print("Loading training data")
     scaled_input_train, \
     labels_train, \

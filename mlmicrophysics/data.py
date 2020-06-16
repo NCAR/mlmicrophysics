@@ -1,3 +1,4 @@
+import s3fs
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -239,7 +240,7 @@ def load_csv_data(csv_path, index_col="Index"):
     return pd.concat(all_data, axis=0)
 
 
-def subset_data_files_by_date(data_path, data_end,
+def subset_data_files_by_date(data_path,
                               train_date_start=0, train_date_end=8000,
                               test_date_start=9000,
                               test_date_end=18000, validation_frequency=3):
@@ -249,7 +250,6 @@ def subset_data_files_by_date(data_path, data_end,
 
     Args:
         data_path:
-        data_end:
         train_date_start:
         train_date_end:
         test_date_start:
@@ -265,9 +265,18 @@ def subset_data_files_by_date(data_path, data_end,
         raise ValueError("test_date_start should not be greater than test_date_end")
     if train_date_end > test_date_start:
         raise ValueError("train and test date periods overlap.")
-    csv_files = pd.Series(sorted(glob(join(data_path, "*" + data_end))))
+    
+    if data_path == "ncar-aiml-data-commons/microphysics":
+        fs = s3fs.S3FileSystem(anon=True)
+        csv_files = pd.Series(sorted(fs.ls("ncar-aiml-data-commons/microphysics")))
+        data_end = "*.parquet"
+    else:
+        csv_files = pd.Series(sorted(glob(join(data_path, "*" + data_end))))
+        data_end = "*.csv"
+
+    
     file_times = csv_files.str.split("/").str[-1].str.split("_").str[-1].str.strip(data_end).astype(int).values
-    print(file_times)
+    print("File times:\n",file_times)
     train_val_ind = np.where((file_times >= train_date_start) & (file_times <= train_date_end))[0]
     test_ind = np.where((file_times >= test_date_start) & (file_times <= test_date_end))[0]
     val_ind = train_val_ind[::validation_frequency]
@@ -369,6 +378,16 @@ def categorize_output_values(output_values, output_transforms, output_scalers=No
     return labels, transformed_outputs, scaled_outputs, output_scalers
 
 
+def open_data_file(filename):
+    if "ncar-aiml-data-commons/microphysics" in filename:
+        fs = s3fs.S3FileSystem(anon=True)
+        fobj = fs.open(filename)
+        ds = pd.read_parquet(fobj).set_index('Index')
+        return ds
+    else:
+        ds = pd.read_csv(filename, index_col="Index")
+        return ds
+
 def assemble_data_files(files, input_cols, output_cols, input_transforms, output_transforms,
                         input_scaler, output_scalers=None, train=True, subsample=1,
                         meta_cols=("lat", "lev", "lon", "depth", "row", "col", "pressure", "temperature",
@@ -395,7 +414,7 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
     all_meta_data = []
     for filename in files:
         print(filename)
-        data = pd.read_csv(filename, index_col="Index")
+        data = open_data_file(filename)
         if subsample < 1:
             sample_index = int(np.round(data.shape[0] * subsample))
             sample_indices = np.sort(np.random.permutation(np.arange(data.shape[0]))[:sample_index])
