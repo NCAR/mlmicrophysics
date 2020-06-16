@@ -1,6 +1,7 @@
 module module_neural_net
     use netcdf
     implicit none
+    integer, parameter, public :: r8 = selected_real_kind(12)
     type Dense
         integer :: input_size
         integer :: output_size
@@ -8,9 +9,12 @@ module module_neural_net
         integer :: activation
         real(kind=8), allocatable :: weights(:, :)
         real(kind=8), allocatable :: bias(:)
+    end type Dense
+
+    type DenseData
         real(kind=8), allocatable :: input(:, :)
         real(kind=8), allocatable :: output(:, :)
-    end type Dense
+    end type DenseData
 
 contains
 
@@ -30,6 +34,7 @@ contains
         real(kind=8), dimension(size(input, 1), layer%output_size) :: dense_output
         integer :: i, j, num_examples
         real(kind=8) :: alpha, beta
+        external :: dgemm
         !real(kind=8) :: time_start, time_end
         alpha = 1
         beta = 1
@@ -37,6 +42,7 @@ contains
         output = 0
         num_examples = size(input, 1)
         !call cpu_time(time_start)
+        !print*, "Input", size(input, 1), size(input, 2), input
         call dgemm('n', 'n', num_examples, layer%output_size, layer%input_size, &
             alpha, input, num_examples, layer%weights, layer%input_size, beta, dense_output, num_examples)
         !call cpu_time(time_end)
@@ -51,7 +57,9 @@ contains
                 dense_output(i, j) = dense_output(i, j) + layer%bias(j)
             end do
         end do
+        !print*, "Dense", size(dense_output, 1), size(dense_output, 2), dense_output
         call apply_activation(dense_output, layer%activation, output)
+        !print*, "Activated", size(output, 1), size(output, 2), output
         return
     end subroutine apply_dense
 
@@ -79,40 +87,53 @@ contains
         real(kind=8), dimension(size(input, 1)) :: softmax_sum
         real(kind=8), parameter :: selu_alpha = 1.6732
         real(kind=8), parameter :: selu_lambda = 1.0507
+        real(kind=8), parameter :: zero = 0.0
         integer :: i, j
         select case (activation_type)
+            case (0)
+                output = input
             case (1)
-                where(input < 0)
-                    output = 0
-                elsewhere
-                    output = input
-                endwhere
+         !      print*, "relu"
+                !where(input < 0)
+                !    output = 0
+                !elsewhere
+                !    output = input
+                !endwhere
+                do i=1,size(input, 1)
+                    do j=1, size(input,2)
+                        output(i, j) = dmax1(input(i, j), zero)
+                    end do
+                end do
             case (2)
-                where(input < 0)
-                    output = exp(input) - 1
-                elsewhere
-                    output = input
-                end where
-            case (3)
-                where(input < 0)
-                    output = selu_lambda * ( selu_alpha * exp(input) - selu_alpha)
-                elsewhere
-                    output = selu_lambda * input
-                end where
-            case (4)
+            !    print*, "sigmoid"
                 output = 1.0 / (1.0 + exp(-input))
+            case (3)
+          !      print*, "elu"
+                do i=1,size(input, 1)
+                    do j=1, size(input,2)
+                        output(i, j) = dmax1(input(i, j), exp(input(i, j))-1.0_r8)
+                    end do
+                end do
+            case (4)
+           !     print*, "selu"
+                do i=1,size(input, 1)
+                    do j=1, size(input,2)
+                        output(i, j) = dmax1(input(i, j), selu_lambda * ( selu_alpha * exp(input(i, j)) - selu_alpha))
+                    end do
+                end do
             case (5)
+             !   print*, "tanh"
                 output = tanh(input)
             case (6)
+             !   print*, "softmax"
                 softmax_sum = sum(exp(input), dim=2) 
                 do i=1, size(input, 1)
                     do j=1, size(input, 2)
                         output(i, j) = exp(input(i, j)) / softmax_sum(i)
                     end do
                 end do
-            case (7)
-                output = input
             case default
+             !   print*, "default linear"
                 output = input
         end select
         return
@@ -155,7 +176,7 @@ contains
         call check(nf90_inq_varid(ncid, layer_name_var, layer_names_var_id))
         allocate(layer_names(num_layers))
         call check(nf90_get_var(ncid, layer_names_var_id, layer_names))
-        !print *, "load neural network " // filename
+        print *, "load neural network " // filename
         allocate(neural_net_model(1:num_layers))
         ! Loop through each layer and load the weights, bias term, and activation function
         do i=1, num_layers
@@ -183,8 +204,6 @@ contains
             call check(nf90_get_var(ncid, layer_weight_var_id, &
                                     temp_weights))
             neural_net_model(i)%weights = transpose(temp_weights)
-            allocate(neural_net_model(i)%input(batch_size, layer_in_dim))
-            allocate(neural_net_model(i)%output(batch_size, layer_out_dim))
             deallocate(temp_weights)
             ! Load the bias weights
             allocate(neural_net_model(i)%bias(layer_out_dim))
@@ -194,20 +213,20 @@ contains
             call check(nf90_get_att(ncid, layer_weight_var_id, "activation", &
                                     activation_name))
             select case (trim(activation_name))
+                case ("linear")
+                    neural_net_model(i)%activation = 0
                 case ("relu")
                     neural_net_model(i)%activation = 1
-                case ("elu")
-                    neural_net_model(i)%activation = 2
-                case ("selu")
-                    neural_net_model(i)%activation = 3
                 case ("sigmoid")
+                    neural_net_model(i)%activation = 2
+                case ("elu")
+                    neural_net_model(i)%activation = 3
+                case ("selu")
                     neural_net_model(i)%activation = 4
                 case ("tanh")
                     neural_net_model(i)%activation = 5
                 case ("softmax")
                     neural_net_model(i)%activation = 6
-                case ("linear")
-                    neural_net_model(i)%activation = 7
                 case default
                     neural_net_model(i)%activation = 7
             end select
@@ -228,12 +247,14 @@ contains
         real(kind=8), intent(in) :: input(:, :)
         type(Dense), intent(inout) :: neural_net_model(:)
         real(kind=8), intent(out) :: prediction(size(input, 1), neural_net_model(size(neural_net_model))%output_size)
-        integer :: bi, i
+        integer :: bi, i, j, num_layers
         integer :: batch_size
         integer :: input_size
         integer :: batch_index_size
         integer, allocatable :: batch_indices(:)
+        type(DenseData) :: neural_net_data(size(neural_net_model))
         input_size = size(input, 1)
+        num_layers = size(neural_net_model)
         batch_size = neural_net_model(1)%batch_size
         batch_index_size = input_size / batch_size
         allocate(batch_indices(batch_index_size))
@@ -242,15 +263,26 @@ contains
             batch_indices(i) = bi
             i = i + 1
         end do
+        do j=1, num_layers
+            allocate(neural_net_data(j)%input(batch_size, neural_net_model(j)%input_size))
+            allocate(neural_net_data(j)%output(batch_size, neural_net_model(j)%output_size))
+        end do
         batch_indices(batch_index_size) = input_size
         do bi=1, batch_index_size
-            neural_net_model(1)%input = input(batch_indices(bi)-batch_size+1:batch_indices(bi), :)
-            do i=1, size(neural_net_model) - 1
-                call apply_dense(neural_net_model(i)%input, neural_net_model(i), neural_net_model(i)%output)
-                neural_net_model(i + 1)%input = neural_net_model(i)%output
+            neural_net_data(1)%input = input(batch_indices(bi)-batch_size+1:batch_indices(bi), :)
+            do i=1, num_layers - 1
+                call apply_dense(neural_net_data(i)%input, neural_net_model(i), neural_net_data(i)%output)
+                neural_net_data(i + 1)%input = neural_net_data(i)%output
             end do
-                call apply_dense(neural_net_model(i)%input, neural_net_model(i), neural_net_model(i)%output)
-            prediction(batch_indices(bi)-batch_size + 1:batch_indices(bi), :) = neural_net_model(size(neural_net_model))%output
+            call apply_dense(neural_net_data(num_layers)%input, neural_net_model(num_layers), &
+                             neural_net_data(num_layers)%output)
+            prediction(batch_indices(bi)-batch_size + 1:batch_indices(bi), :) = &
+                    neural_net_data(num_layers)%output
+        !    print*,"Prediction", prediction(batch_indices(bi)-batch_size + 1:batch_indices(bi), :)
+        end do
+        do j=1, num_layers
+            deallocate(neural_net_data(j)%input)
+            deallocate(neural_net_data(j)%output)
         end do
         deallocate(batch_indices)
     end subroutine neural_net_predict

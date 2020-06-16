@@ -2,7 +2,6 @@ from mlmicrophysics.models import DenseNeuralNetwork
 from mlmicrophysics.data import subset_data_files_by_date, assemble_data_files
 import numpy as np
 import pandas as pd
-from keras.models import save_model
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, MaxAbsScaler, RobustScaler
 from sklearn.metrics import confusion_matrix, accuracy_score, mean_absolute_error
 from mlmicrophysics.metrics import heidke_skill_score, peirce_skill_score, hellinger_distance, root_mean_squared_error, r2_corr
@@ -31,7 +30,7 @@ def main():
     parser.add_argument("config", help="Path to config file")
     args = parser.parse_args()
     with open(args.config) as config_file:
-        config = yaml.load(config_file)
+        config = yaml.load(config_file, Loader=yaml.FullLoader)
     data_path = config["data_path"]
     out_path = config["out_path"]
     input_cols = config["input_cols"]
@@ -43,7 +42,7 @@ def main():
     subsample = config["subsample"]
     if not exists(out_path):
         os.makedirs(out_path)
-    train_files, val_files, test_files = subset_data_files_by_date(data_path, "*.csv", **config["subset_data"])
+    train_files, val_files, test_files = subset_data_files_by_date(data_path, **config["subset_data"])
     print("Loading training data")
     scaled_input_train, \
     labels_train, \
@@ -100,9 +99,7 @@ def main():
         classifiers[output_col].fit(scaled_input_train, labels_train[output_col])
         classifiers[output_col].save_fortran_model(join(config["out_path"],
                                                         "dnn_{0}_class_fortran.nc".format(output_col[0:2])))
-        save_model(classifiers[output_col].model,
-                   join(config["out_path"],
-                        "dnn_{0}_class.h5".format(output_col[0:2])))
+        classifiers[output_col].model.save(join(config["out_path"],"dnn_{0}_class.h5".format(output_col[0:2])))
         regressors[output_col] = dict()
         print("Evaluate Classifier", output_col)
         test_prediction_labels[:, o] = classifiers[output_col].predict(scaled_input_test)
@@ -126,9 +123,8 @@ def main():
                 regressors[output_col][label].save_fortran_model(join(config["out_path"],
                                                                       "dnn_{0}_{1}_fortran.nc".format(output_col[0:2],
                                                                                                       out_label)))
-                save_model(regressors[output_col][label].model,
-                           join(config["out_path"],
-                                "dnn_{0}_{1}.h5".format(output_col[0:2], out_label)))
+                regressors[output_col][label].model.save(join(config["out_path"],
+                                                              "dnn_{0}_{1}.h5".format(output_col[0:2], out_label)))
                 print("Test Regressor", output_col, label)
                 test_prediction_values[:, l] = output_scalers[output_col][label].inverse_transform(regressors[output_col][label].predict(scaled_input_test))
                 reg_label = output_col + f"_{label:d}"

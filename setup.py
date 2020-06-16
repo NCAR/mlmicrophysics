@@ -29,6 +29,7 @@ if __name__ == "__main__":
                             #"keras",
                             "netcdf4",
                             "scikit-learn",
-                            "pyyaml"],
+                            "pyyaml",
+                            "pyarrow"],
           #ext_modules=[ext_call_collect]
           )
