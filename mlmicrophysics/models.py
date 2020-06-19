@@ -95,6 +95,7 @@ class DenseNeuralNetwork(object):
         if self.classifier:
             outputs = np.unique(y).size
         self.build_neural_network(inputs, outputs)
+        self.model.summary()
         if self.classifier:
             self.y_labels = np.unique(y)
             y_class = np.zeros((y.shape[0], self.y_labels.size), dtype=np.int32)
