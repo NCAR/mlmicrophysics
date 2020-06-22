@@ -9,6 +9,7 @@ import argparse
 import yaml
 from os.path import join, exists
 import os
+from datetime import datetime
 
 scalers = {"MinMaxScaler": MinMaxScaler,
            "MaxAbsScaler": MaxAbsScaler,
@@ -79,6 +80,9 @@ def main():
     print(out_scales_df)
     out_scales_df.to_csv(join(out_path, "output_scale_values.csv"),
                          index_label="output")
+
+    beginning = datetime.now()
+    print(f"BEGINNING: {beginning}")
     classifiers = dict()
     regressors = dict()
     reg_index = []
@@ -135,6 +139,8 @@ def main():
                                                                     test_prediction_values[labels_test[output_col] == label, l])
                 print(reg_scores.loc[reg_label])
                 l += 1
+    print(f"Running the model took: {datetime.now() - beginning}")
+
     print("Saving data")
     classifier_scores.to_csv(join(out_path, "dnn_classifier_scores.csv"), index_label="Output")
     reg_scores.to_csv(join(out_path, "dnn_regressor_scores.csv"), index_label="Output")

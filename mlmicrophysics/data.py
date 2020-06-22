@@ -271,9 +271,8 @@ def subset_data_files_by_date(data_path,
         csv_files = pd.Series(sorted(fs.ls("ncar-aiml-data-commons/microphysics")))
         data_end = "*.parquet"
     else:
-        csv_files = pd.Series(sorted(glob(join(data_path, "*" + data_end))))
         data_end = "*.csv"
-
+        csv_files = pd.Series(sorted(glob(join(data_path, "*" + data_end))))
     
     file_times = csv_files.str.split("/").str[-1].str.split("_").str[-1].str.strip(data_end).astype(int).values
     print("File times:\n",file_times)
@@ -390,7 +389,7 @@ def open_data_file(filename):
 
 def assemble_data_files(files, input_cols, output_cols, input_transforms, output_transforms,
                         input_scaler, output_scalers=None, train=True, subsample=1,
-                        meta_cols=("lat", "lev", "lon", "depth", "row", "col", "pressure", "temperature",
+                        meta_cols=("lat", "lon", "lev", "depth", "row", "col", "pressure", "temperature",
                                    "time", "qrtend_MG2", "nrtend_MG2", "nctend_MG2")):
     """
     This function loads data from a list of files
@@ -412,8 +411,9 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
     all_input_data = []
     all_output_data = []
     all_meta_data = []
-    for filename in files:
-        print(filename)
+    for i,filename in enumerate(files):
+        if i%10 == 0:
+            print(f"Finished loading {i}/{len(files)} files... opening file {filename}")
         data = open_data_file(filename)
         if subsample < 1:
             sample_index = int(np.round(data.shape[0] * subsample))
