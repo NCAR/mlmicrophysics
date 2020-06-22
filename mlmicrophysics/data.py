@@ -389,7 +389,7 @@ def open_data_file(filename):
 
 def assemble_data_files(files, input_cols, output_cols, input_transforms, output_transforms,
                         input_scaler, output_scalers=None, train=True, subsample=1,
-                        meta_cols=("lat", "lev", "lon", "depth", "row", "col", "pressure", "temperature",
+                        meta_cols=("lat", "lon", "lev", "depth", "row", "col", "pressure", "temperature",
                                    "time", "qrtend_MG2", "nrtend_MG2", "nctend_MG2")):
     """
     This function loads data from a list of files
@@ -413,7 +413,7 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
     all_meta_data = []
     for i,filename in enumerate(files):
         if i%10 == 0:
-            print(f"Finished loading {i} files. On file {filename})
+            print(f"Finished loading {i}/{len(files)} files... opening file {filename}")
         data = open_data_file(filename)
         if subsample < 1:
             sample_index = int(np.round(data.shape[0] * subsample))
