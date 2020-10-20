@@ -43,6 +43,9 @@ Once the data are processed, you can train a set of neural network emulators wit
 This script pre-processes the training and validation data, trains a set of neural networks
 and saves them and their verification statistics to an output directory.
 
+## CAM modifications
+The code used to run the neural network emulator and TAU in CAM 6 can be found in the `cam_code` directory. These can be added to the CESM cam6_0_000 code as a SourceMod if you want to run your own simulations.
+
 ## Contact
 If you have issues with the library, please create an issue on the github page.
 General questions can be sent to David John Gagne at dgagne@ucar.edu.
