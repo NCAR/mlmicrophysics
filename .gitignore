@@ -108,4 +108,5 @@ venv.bak/
 .idea/
 models/
 *.o
+*.out
 config/200607/
