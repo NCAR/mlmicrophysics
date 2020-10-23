@@ -102,3 +102,10 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Other settings
+.DS_Store
+.idea/
+models/
+*.o
+config/200607/
