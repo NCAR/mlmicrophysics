@@ -87,7 +87,7 @@ class DenseNeuralNetwork(object):
             self.optimizer_obj = SGD(lr=self.lr, momentum=self.sgd_momentum, decay=self.decay)
         self.model.compile(optimizer=self.optimizer, loss=self.loss)
 
-    def fit(self, x, y, xv, yv):
+    def fit(self, x, y, xv=None, yv=None):
         inputs = x.shape[1]
         if len(y.shape) == 1:
             outputs = 1
@@ -98,20 +98,28 @@ class DenseNeuralNetwork(object):
         self.build_neural_network(inputs, outputs)
         self.model.summary()
         if self.classifier:
-            self.y_labels = np.unique(y)
-            self.y_labels_val = np.unique(yv)
-            y_class = np.zeros((y.shape[0], self.y_labels.size), dtype=np.int32)
-            y_class_val = np.zeros((yv.shape[0], self.y_labels_val.size), dtype=np.int32)
+            y_labels = np.unique(y)
+            y_class = np.zeros((y.shape[0], y_labels.size), dtype=np.int32)
+            if yv is not None:
+                y_labels_val = np.unique(yv)
+                y_class_val = np.zeros((yv.shape[0], y_labels_val.size), dtype=np.int32)
+                for l, label in enumerate(self.y_labels_val):
+                    y_class_val[yv == label, l] = 1
+                validation_data = (xv, y_class_val)
+            else:
+                validation_data = None
             for l, label in enumerate(self.y_labels):
                 y_class[y == label, l] = 1
-            for l, label in enumerate(self.y_labels_val):
-                y_class_val[yv == label, l] = 1
             self.model.fit(x, y_class, batch_size=self.batch_size,
                            epochs=self.epochs, verbose=self.verbose,
-                           validation_data=(xv, y_class_val))
+                           validation_data=validation_data)
         else:
+            if xv is None or yv is None:
+                validation_data = None
+            else:
+                validation_data = (xv, yv)
             self.model.fit(x, y, batch_size=self.batch_size, epochs=self.epochs,
-                           verbose=self.verbose, validation_data=(xv, yv))
+                           verbose=self.verbose, validation_data=validation_data)
         return self.model.history.history
 
     def save_fortran_model(self, filename):
@@ -240,7 +248,6 @@ class DenseGAN(object):
         self.build_discriminator(inputs, outputs)
         # Stack generator and discriminator models for training the generator
         self.stack_gen_disc()
-        self.gen_predict_func = K.function([self.generator.input, K.learning_phase()], [self.generator.output])
         batch_half = int(self.batch_size // 2)
         # Remove examples until the number of training examples is divisible by the batch size
         batch_diff = x.shape[0] % self.batch_size
@@ -264,7 +271,7 @@ class DenseGAN(object):
             for b, b_index in enumerate(np.arange(self.batch_size, x_sub.shape[0], self.batch_size * 2)):
                 x_disc_batch[:] = x_sub[indices[b_index - self.batch_size: b_index]]
                 y_disc_batch[:batch_half] = y_sub[indices[b_index - self.batch_size: b_index - batch_half]]
-                y_disc_batch[batch_half:] = self.gen_predict_func([x_disc_batch[batch_half:], 1])[0]
+                y_disc_batch[batch_half:] = self.generator.predict_on_batch(x_disc_batch[batch_half:])
                 loss_history["disc_loss"].append(self.discriminator.train_on_batch([x_disc_batch, y_disc_batch],
                                                                                    disc_batch_labels))
                 x_gen_batch[:] = x_sub[indices[b_index: b_index + self.batch_size]]

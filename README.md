@@ -3,7 +3,7 @@ Machine learning emulators for microphysical processes in CESM.
 
 ## Requirements
 
-The library has been tested with Python 3.6.
+The library has been tested with Python 3.6 and 3.7.
 The mlmicrophysics library requires the following Python libraries:
 * numpy
 * scipy
@@ -44,7 +44,10 @@ This script pre-processes the training and validation data, trains a set of neur
 and saves them and their verification statistics to an output directory.
 
 ## CAM modifications
-The code used to run the neural network emulator and TAU in CAM 6 can be found in the `cam_code` directory. These can be added to the CESM cam6_0_000 code as a SourceMod if you want to run your own simulations.
+The code used to run the neural network emulator and TAU in CAM 6 can be found in the `cam_code` and `cam_tau_code` directories. These can be added to the CESM cam6_0_000 code as a SourceMod if you want to run your own simulations.
+
+## Machine Learning the Warm Rain Process
+Some of the figures and tables for the Machine Learning the Warm Rain Process paper were generated using the code in `notebooks/nn_train_evaluation_20190512.ipynb`. 
 
 ## Contact
 If you have issues with the library, please create an issue on the github page.
