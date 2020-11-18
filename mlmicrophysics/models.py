@@ -59,7 +59,6 @@ class DenseNeuralNetwork(object):
         self.y_labels = None
         self.y_labels_val = None
         self.model = None
-        self.optimizer_obj = None
 
     def build_neural_network(self, inputs, outputs):
         """
@@ -87,7 +86,7 @@ class DenseNeuralNetwork(object):
             self.optimizer_obj = SGD(lr=self.lr, momentum=self.sgd_momentum, decay=self.decay)
         self.model.compile(optimizer=self.optimizer_obj, loss=self.loss)
 
-    def fit(self, x, y, xv=None, yv=None):
+    def fit(self, x, y, xv=None, yv=None, **kwargs):
         inputs = x.shape[1]
         if len(y.shape) == 1:
             outputs = 1
@@ -98,11 +97,11 @@ class DenseNeuralNetwork(object):
         self.build_neural_network(inputs, outputs)
         self.model.summary()
         if self.classifier:
-            y_labels = np.unique(y)
-            y_class = np.zeros((y.shape[0], y_labels.size), dtype=np.int32)
+            self.y_labels = np.unique(y)
+            y_class = np.zeros((y.shape[0], self.y_labels.size), dtype=np.int32)
             if yv is not None:
-                y_labels_val = np.unique(yv)
-                y_class_val = np.zeros((yv.shape[0], y_labels_val.size), dtype=np.int32)
+                self.y_labels_val = np.unique(yv)
+                y_class_val = np.zeros((yv.shape[0], self.y_labels_val.size), dtype=np.int32)
                 for l, label in enumerate(self.y_labels_val):
                     y_class_val[yv == label, l] = 1
                 validation_data = (xv, y_class_val)
@@ -112,14 +111,15 @@ class DenseNeuralNetwork(object):
                 y_class[y == label, l] = 1
             self.model.fit(x, y_class, batch_size=self.batch_size,
                            epochs=self.epochs, verbose=self.verbose,
-                           validation_data=validation_data)
+                           validation_data=validation_data, **kwargs)
         else:
             if xv is None or yv is None:
                 validation_data = None
             else:
                 validation_data = (xv, yv)
             self.model.fit(x, y, batch_size=self.batch_size, epochs=self.epochs,
-                           verbose=self.verbose, validation_data=validation_data)
+                           verbose=self.verbose, validation_data=validation_data,
+                           **kwargs)
         return self.model.history.history
 
     def save_fortran_model(self, filename):
