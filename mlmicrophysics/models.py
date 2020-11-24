@@ -1,4 +1,4 @@
-from tensorflow.keras.layers import Input, Dense, Dropout, GaussianNoise, Activation, Concatenate, BatchNormalization
+from tensorflow.keras.layers import Input, Dense, Dropout, GaussianNoise, Activation, Concatenate, BatchNormalization, LeakyReLU
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.optimizers import Adam, SGD
@@ -30,7 +30,7 @@ class DenseNeuralNetwork(object):
         verbose: Level of detail to provide during training
         model: Keras Model object
     """
-    def __init__(self, hidden_layers=1, hidden_neurons=4, activation="relu",
+    def __init__(self, hidden_layers=1, hidden_neurons=4, activation="relu", leaky_alpha=0.1,
                  output_activation="linear", optimizer="adam", loss="mse", use_noise=False, noise_sd=0.01,
                  lr=0.001, use_dropout=False, dropout_alpha=0.1, batch_size=128, epochs=2,
                  l2_weight=0.01, sgd_momentum=0.9, adam_beta_1=0.9, adam_beta_2=0.999, decay=0, verbose=0,
@@ -38,6 +38,8 @@ class DenseNeuralNetwork(object):
         self.hidden_layers = hidden_layers
         self.hidden_neurons = hidden_neurons
         self.activation = activation
+        print(self.activation)
+        self.leaky_alpha = leaky_alpha
         self.output_activation = output_activation
         self.optimizer = optimizer
         self.optimizer_obj = None
@@ -70,15 +72,23 @@ class DenseNeuralNetwork(object):
         """
         nn_input = Input(shape=(inputs,), name="input")
         nn_model = nn_input
+        
         for h in range(self.hidden_layers):
-            nn_model = Dense(self.hidden_neurons, activation=self.activation,
-                             kernel_regularizer=l2(self.l2_weight), name=f"dense_{h:02d}")(nn_model)
+            nn_model = Dense(self.hidden_neurons,
+                             kernel_regularizer=l2(self.l2_weight),
+                             name=f"dense_{h:02d}")(nn_model)
+            if self.activation == "leaky":
+                print("LEAKY________")
+                nn_model = LeakyReLU(self.leaky_alpha, name="hidden_activation_{0:02d}".format(h))(nn_model)
+            else:
+                nn_model = Activation(self.activation, name="hidden_activation_{0:02d}".format(h))(nn_model)
+
             if self.use_dropout:
                 nn_model = Dropout(self.dropout_alpha, name=f"dropout_h_{h:02d}")(nn_model)
             if self.use_noise:
                 nn_model = GaussianNoise(self.noise_sd, name=f"ganoise_h_{h:02d}")(nn_model)
-        nn_model = Dense(outputs,
-                         activation=self.output_activation, name=f"dense_{self.hidden_layers:02d}")(nn_model)
+        nn_model = Dense(outputs, activation=self.output_activation,
+                         name=f"dense_{self.hidden_layers:02d}")(nn_model)
         self.model = Model(nn_input, nn_model)
         if self.optimizer == "adam":
             self.optimizer_obj = Adam(lr=self.lr, beta_1=self.adam_beta_1, beta_2=self.adam_beta_2, decay=self.decay)
