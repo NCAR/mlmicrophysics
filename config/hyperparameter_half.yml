@@ -7,7 +7,6 @@ slurm:
   bash: ["module load gnu/8.3.0 openmpi/3.1.4 python/3.7.5 cuda/10.1"]
   batch:
     account: "NAML0001"
-    gres: "gpu:v100:1"
     mem: "256G"
     n: 8
     t: "23:59:00"
@@ -17,12 +16,12 @@ slurm:
 
 optuna:
   name: "micro_optimization.db"
-  reload: 0
+  reload: 1
   objective: "/glade/work/ggantos/mlmicrophysics/objective.py"
   direction: "minimize"
   metric: "val_loss"
-  n_trials: 40
-  gpu: True
+  n_trials: 5
+  gpu: False
   save_path: "/glade/p/cisl/aiml/ggantos/micro/optuna/dataset_half/"
   sampler:
     type: "TPESampler"

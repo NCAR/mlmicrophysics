@@ -64,8 +64,6 @@ def main():
                                               train=False, subsample=subsample)
     input_scaler_df = pd.DataFrame({"mean": input_scaler.mean_, "scale": input_scaler.scale_},
                                    index=input_cols)
-    print(transformed_out_test.columns)
-    print(transformed_out_test.index)
     meta_test.to_csv(join(out_path, "meta_test.csv"), index_label="index")
     input_scaler_df.to_csv(join(out_path, "input_scale_values.csv"), index_label="input")
     out_scales_list = []
@@ -77,7 +75,6 @@ def main():
                                                      "scale": output_scalers[var][out_class].scale_},
                                                     index=[var + "_" + str(out_class)]))
     out_scales_df = pd.concat(out_scales_list)
-    print(out_scales_df)
     out_scales_df.to_csv(join(out_path, "output_scale_values.csv"),
                          index_label="output")
 
