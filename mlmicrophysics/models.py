@@ -38,7 +38,6 @@ class DenseNeuralNetwork(object):
         self.hidden_layers = hidden_layers
         self.hidden_neurons = hidden_neurons
         self.activation = activation
-        print(self.activation)
         self.leaky_alpha = leaky_alpha
         self.output_activation = output_activation
         self.optimizer = optimizer
