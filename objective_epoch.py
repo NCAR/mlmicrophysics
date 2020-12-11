@@ -109,8 +109,28 @@ def objective(trial, config):
 
     beginning = datetime.now()
     print(f"BEGINNING: {beginning}")
+    
+    # initialize neural networks that will only be defined once and trained in epoch loop
     classifiers = dict()
+    for output_col in output_cols:
+        classifiers[output_col] = DenseNeuralNetwork(hidden_layers=class_hidden_layers,
+                                                     hidden_neurons=class_hidden_neurons,
+                                                     lr=class_lr,
+                                                     l2_weight=class_l2_weight,
+                                                     activation=class_activation,
+                                                     batch_size=class_batch_size,
+                                                     **config["classifier_networks"])
     regressors = dict()
+    for output_col in output_cols:
+        regressors[output_col] = dict()
+        for label in [l for l in list(output_transforms[output_col].keys()) if l != 0]:
+            regressors[output_col][label] = DenseNeuralNetwork(hidden_layers=reg_hidden_layers,
+                                                   hidden_neurons=reg_hidden_neurons,
+                                                   lr=reg_lr,
+                                                   l2_weight=reg_l2_weight,
+                                                   activation=reg_activation,
+                                                   batch_size=reg_batch_size,
+                                                   **config["regressor_networks"])
     reg_index = []
     for output_col in output_cols:
         for label in list(output_transforms[output_col].keys()):
@@ -123,19 +143,10 @@ def objective(trial, config):
         score = 0
         for o, output_col in enumerate(output_cols):
             print(f"Train {output_col} Classifer - epoch: {epoch}")
-            if output_col not in classifiers.keys():
-                classifiers[output_col] = DenseNeuralNetwork(hidden_layers=class_hidden_layers,
-                                                             hidden_neurons=class_hidden_neurons,
-                                                             lr=class_lr,
-                                                             l2_weight=class_l2_weight,
-                                                             activation=class_activation,
-                                                             batch_size=class_batch_size,
-                                                             **config["classifier_networks"])
             hist = classifiers[output_col].fit(scaled_input_train,
                                                labels_train[output_col],
                                                scaled_input_test,
                                                labels_test[output_col])
-            regressors[output_col] = dict()
             print("Evaluate Classifier", output_col)
             test_prediction_labels[:, o] = classifiers[output_col].predict(scaled_input_test)
             true = OneHotEncoder(sparse=False).fit_transform(labels_test[output_col].to_numpy().reshape(-1, 1))
@@ -144,14 +155,6 @@ def objective(trial, config):
             for l, label in enumerate(list(output_transforms[output_col].keys())):
                 if label != 0:
                     print(f"Train {output_col} - {label} Regressor - epoch: {epoch}")
-                    if label not in regressors[output_col].keys():
-                        regressors[output_col][label] = DenseNeuralNetwork(hidden_layers=reg_hidden_layers,
-                                                                           hidden_neurons=reg_hidden_neurons,
-                                                                           lr=reg_lr,
-                                                                           l2_weight=reg_l2_weight,
-                                                                           activation=reg_activation,
-                                                                           batch_size=reg_batch_size,
-                                                                           **config["regressor_networks"])
                     hist = regressors[output_col][label].fit(scaled_input_train.loc[labels_train[output_col] == label],
                                                              scaled_out_train.loc[labels_train[output_col] == label, output_col],
                                                              scaled_input_test.loc[labels_test[output_col] == label],
