@@ -11,8 +11,8 @@ slurm:
     n: 8
     t: "23:59:00"
     J: "hyper_opt"
-    o: "hyper_opt.out"
-    e: "hyper_opt.err"
+    o: "hyper_opt_full.out"
+    e: "hyper_opt_full.err"
 
 optuna:
   name: "micro_optimization.db"

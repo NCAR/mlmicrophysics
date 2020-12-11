@@ -1,18 +1,18 @@
 log:
-  save_path: "/glade/p/cisl/aiml/ggantos/micro/optuna/dataset_tenperc_epoch/log.txt"
+  save_path: "/glade/p/cisl/aiml/ggantos/micro/optuna/dataset_epoch_test/log.txt"
 
 slurm:
-  jobs: 3
+  jobs: 1
   kernel: "ncar_pylib ncar_20200417"
   bash: ["module load gnu/8.3.0 openmpi/3.1.4 python/3.7.5 cuda/10.1"]
   batch:
     account: "NAML0001"
     mem: "256G"
     n: 8
-    t: "12:59:00"
+    t: "23:59:00"
     J: "hyper_opt"
-    o: "hyper_opt_tp.out"
-    e: "hyper_opt_tp.err"
+    o: "hyper_opt_test.out"
+    e: "hyper_opt_test.err"
 
 optuna:
   name: "micro_optimization.db"
@@ -20,9 +20,9 @@ optuna:
   objective: "/glade/work/ggantos/mlmicrophysics/objective_epoch.py"
   direction: "minimize"
   metric: "val_loss"
-  n_trials: 200
+  n_trials: 2
   gpu: False
-  save_path: "/glade/p/cisl/aiml/ggantos/micro/optuna/dataset_tenperc_epoch/"
+  save_path: "/glade/p/cisl/aiml/ggantos/micro/optuna/dataset_epoch_test/"
   sampler:
     type: "TPESampler"
     n_startup_trials: 100

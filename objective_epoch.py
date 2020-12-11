@@ -44,7 +44,6 @@ def ranked_probability_score(y_true_discrete, y_pred_discrete):
     y_true_cumulative = np.cumsum(y_true_discrete)
     return np.mean((y_pred_cumulative - y_true_cumulative) ** 2) / float(y_pred_discrete.shape[1] - 1)
 
-
 def objective(trial, config):
 
     # Get list of hyperparameters from the config
@@ -123,19 +122,19 @@ def objective(trial, config):
     for epoch in range(config["epochs"]):
         score = 0
         for o, output_col in enumerate(output_cols):
-            print("Train {output_col} Classifer - epoch: {epoch}")
-            classifiers[output_col] = DenseNeuralNetwork(hidden_layers=class_hidden_layers,
-                                                         hidden_neurons=class_hidden_neurons,
-                                                         lr=class_lr,
-                                                         l2_weight=class_l2_weight,
-                                                         activation=class_activation,
-                                                         batch_size=class_batch_size,
-                                                         **config["classifier_networks"])
+            print(f"Train {output_col} Classifer - epoch: {epoch}")
+            if output_col not in classifiers.keys():
+                classifiers[output_col] = DenseNeuralNetwork(hidden_layers=class_hidden_layers,
+                                                             hidden_neurons=class_hidden_neurons,
+                                                             lr=class_lr,
+                                                             l2_weight=class_l2_weight,
+                                                             activation=class_activation,
+                                                             batch_size=class_batch_size,
+                                                             **config["classifier_networks"])
             hist = classifiers[output_col].fit(scaled_input_train,
                                                labels_train[output_col],
                                                scaled_input_test,
                                                labels_test[output_col])
-            logger.info(f"finished with classifier {output_col}")
             regressors[output_col] = dict()
             print("Evaluate Classifier", output_col)
             test_prediction_labels[:, o] = classifiers[output_col].predict(scaled_input_test)
@@ -145,24 +144,22 @@ def objective(trial, config):
             for l, label in enumerate(list(output_transforms[output_col].keys())):
                 if label != 0:
                     print(f"Train {output_col} - {label} Regressor - epoch: {epoch}")
-                    regressors[output_col][label] = DenseNeuralNetwork(hidden_layers=reg_hidden_layers,
-                                                                       hidden_neurons=reg_hidden_neurons,
-                                                                       lr=reg_lr,
-                                                                       l2_weight=reg_l2_weight,
-                                                                       activation=reg_activation,
-                                                                       batch_size=reg_batch_size,
-                                                                       **config["regressor_networks"])
+                    if label not in regressors[output_col].keys():
+                        regressors[output_col][label] = DenseNeuralNetwork(hidden_layers=reg_hidden_layers,
+                                                                           hidden_neurons=reg_hidden_neurons,
+                                                                           lr=reg_lr,
+                                                                           l2_weight=reg_l2_weight,
+                                                                           activation=reg_activation,
+                                                                           batch_size=reg_batch_size,
+                                                                           **config["regressor_networks"])
                     hist = regressors[output_col][label].fit(scaled_input_train.loc[labels_train[output_col] == label],
                                                              scaled_out_train.loc[labels_train[output_col] == label, output_col],
                                                              scaled_input_test.loc[labels_test[output_col] == label],
                                                              scaled_out_test.loc[labels_test[output_col] == label, output_col])
-                    logger.info(f"finished with regressor {output_col}")
-
                     if label > 0:
                         out_label = "pos"
                     else:
                         out_label = "neg"
-                    print("Test Regressor", output_col, label)
                     test_prediction_values[:, l] = output_scalers[output_col][label].inverse_transform(regressors[output_col][label].predict(scaled_input_test))
                     score += mean_squared_error(transformed_out_test.loc[labels_test[output_col] == label, output_col],
                                                 test_prediction_values[labels_test[output_col] == label, l])

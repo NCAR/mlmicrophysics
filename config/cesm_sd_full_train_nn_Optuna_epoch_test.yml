@@ -1,0 +1,49 @@
+data_path: "/glade/p/cisl/aiml/ggantos/cam_mp_files_sd_full_csv/"
+out_path: "/glade/p/cisl/aiml/ggantos/micro/optuna/dataset_epoch_test/"
+subset_data:
+  train_date_start: 5
+  train_date_end: 55 #7000
+  test_date_start: 7005
+  test_date_end: 7055 #8760
+random_seed: 328942
+subsample: 0.1
+classifier_metrics: ["acc", "pss", "hss"]
+regressor_metrics: ["mse", "mae", "r2", "hellinger"]
+input_cols: ["QC_sd_in", "NC_sd_in", "QR_sd_in", "NR_sd_in", "RHO_CLUBB_lev",
+             "lamc", "lamr", "lcldm", "n0r", "pgam", "precip_frac"]
+output_cols: ["qrtend_sd", "nctend_sd", "nrtend_sd"]
+input_transforms:
+  QC_sd_in: "log10_transform"
+  NC_sd_in: "log10_transform"
+  QR_sd_in: "log10_transform"
+  NR_sd_in: "log10_transform"
+  lamc: "log10_transform"
+  lamr: "log10_transform"
+  pgam: "log10_transform"
+  n0r: "log10_transform"
+input_scaler: "StandardScaler"
+output_transforms:
+  qrtend_sd:
+    0: ["<=", 1e-18, "zero_transform", "None"]
+    1: [">", 1e-18, "log10_transform", "StandardScaler"]
+  nctend_sd:
+    0: [">=", -1e-18, "zero_transform", "None"]
+    1: ["<", -1e-18, "neg_log10_transform", "StandardScaler"]
+  nrtend_sd:
+    -1: ["<", 0, "neg_log10_transform", "StandardScaler"]
+    0: ["==", 0, "zero_transform", "None"]
+    1: [">", 0, "log10_transform", "StandardScaler"]
+epochs: 2
+classifier_networks:
+  loss: "categorical_crossentropy"
+  output_activation: "softmax"
+  epochs: 1
+  verbose: 1
+  classifier: 1
+regressor_networks:
+  loss: "huber"
+  output_activation: "linear"
+  epochs: 1
+  verbose: 1
+  classifier: 0
+
