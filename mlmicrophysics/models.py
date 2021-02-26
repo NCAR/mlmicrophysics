@@ -85,7 +85,7 @@ class DenseNeuralNetwork(object):
             self.optimizer_obj = Adam(lr=self.lr, beta_1=self.adam_beta_1, beta_2=self.adam_beta_2, decay=self.decay)
         elif self.optimizer == "sgd":
             self.optimizer_obj = SGD(lr=self.lr, momentum=self.sgd_momentum, decay=self.decay)
-        self.model.compile(optimizer=self.optimizer, loss=self.loss)
+        self.model.compile(optimizer=self.optimizer_obj, loss=self.loss)
 
     def fit(self, x, y, xv=None, yv=None):
         inputs = x.shape[1]
