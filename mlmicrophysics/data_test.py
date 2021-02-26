@@ -17,8 +17,8 @@ class TestData(unittest.TestCase):
         samples = 50000
         random_seed = 1232
         np.random.seed(random_seed)
-        output_labels = pd.DataFrame({"two_labels": np.random.random_integers(0, 2, samples),
-                                      "three_labels": np.random.random_integers(-1, 2, samples)})
+        output_labels = pd.DataFrame({"two_labels": np.random.randint(0, 2, samples),
+                                      "three_labels": np.random.randint(-1, 2, samples)})
         scaled_output_values = pd.DataFrame({"two_labels": np.zeros(samples),
                                              "three_labels": np.zeros(samples)})
         category_size = 500
