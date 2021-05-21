@@ -1,6 +1,6 @@
 import unittest
 from .models import DenseNeuralNetwork, DenseGAN
-from keras.layers import Dense
+from tensorflow.keras.layers import Dense
 import numpy as np
 
 

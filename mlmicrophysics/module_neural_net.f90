@@ -106,19 +106,27 @@ contains
                 end do
             case (2)
             !    print*, "sigmoid"
-                output = 1.0 / (1.0 + exp(-input))
+                output = 1.0 / (1.0 + dexp(-input))
             case (3)
           !      print*, "elu"
                 do i=1,size(input, 1)
                     do j=1, size(input,2)
-                        output(i, j) = dmax1(input(i, j), exp(input(i, j))-1.0_r8)
+                        if (input(i, j) >= 0) then
+                            output(i, j) = input(i, j)
+                        else
+                            output(i, j) = dexp(input(i, j))-1.0_r8
+                        end if 
                     end do
                 end do
             case (4)
            !     print*, "selu"
                 do i=1,size(input, 1)
                     do j=1, size(input,2)
-                        output(i, j) = dmax1(input(i, j), selu_lambda * ( selu_alpha * exp(input(i, j)) - selu_alpha))
+                        if (input(i, j) >= 0) then
+                            output(i, j) = input(i, j) 
+                        else
+                            output(i, j) = selu_lambda * ( selu_alpha * dexp(input(i, j)) - selu_alpha)
+                        end if
                     end do
                 end do
             case (5)
@@ -126,10 +134,10 @@ contains
                 output = tanh(input)
             case (6)
              !   print*, "softmax"
-                softmax_sum = sum(exp(input), dim=2) 
+                softmax_sum = sum(dexp(input), dim=2) 
                 do i=1, size(input, 1)
                     do j=1, size(input, 2)
-                        output(i, j) = exp(input(i, j)) / softmax_sum(i)
+                        output(i, j) = dexp(input(i, j)) / softmax_sum(i)
                     end do
                 end do
             case default
