@@ -8,6 +8,17 @@ import xarray as xr
 import pandas as pd
 
 
+metrics_dict = {"accuracy": accuracy_score,
+                 "heidke": heidke_skill_score,
+                 "peirce": peirce_skill_score,
+                 "confusion": confusion_matrix,
+                 "rmse": root_mean_squared_error,
+                 "mae": mean_absolute_error,
+                 "r2": r2_corr,
+                 "hellinger": hellinger_distance,
+                 "mse": mean_squared_error,
+                 "huber": huber}
+
 class DenseNeuralNetwork(object):
     """
     A Dense Neural Network Model that can support arbitrary numbers of hidden layers.
@@ -34,7 +45,7 @@ class DenseNeuralNetwork(object):
                  output_activation="linear", optimizer="adam", loss="mse", use_noise=False, noise_sd=0.01,
                  lr=0.001, use_dropout=False, dropout_alpha=0.1, batch_size=128, epochs=2,
                  l2_weight=0.01, sgd_momentum=0.9, adam_beta_1=0.9, adam_beta_2=0.999, decay=0, verbose=0,
-                 classifier=False):
+                 classifier=False, metrics=None):
         self.hidden_layers = hidden_layers
         self.hidden_neurons = hidden_neurons
         self.activation = activation
@@ -60,6 +71,7 @@ class DenseNeuralNetwork(object):
         self.y_labels = None
         self.y_labels_val = None
         self.model = None
+        self.metrics = [metrics_dict[m]() for m in metrics]
 
     def build_neural_network(self, inputs, outputs):
         """
@@ -77,7 +89,6 @@ class DenseNeuralNetwork(object):
                              kernel_regularizer=l2(self.l2_weight),
                              name=f"dense_{h:02d}")(nn_model)
             if self.activation == "leaky":
-                print("LEAKY________")
                 nn_model = LeakyReLU(self.leaky_alpha, name="hidden_activation_{0:02d}".format(h))(nn_model)
             else:
                 nn_model = Activation(self.activation, name="hidden_activation_{0:02d}".format(h))(nn_model)
@@ -93,7 +104,7 @@ class DenseNeuralNetwork(object):
             self.optimizer_obj = Adam(lr=self.lr, beta_1=self.adam_beta_1, beta_2=self.adam_beta_2, decay=self.decay)
         elif self.optimizer == "sgd":
             self.optimizer_obj = SGD(lr=self.lr, momentum=self.sgd_momentum, decay=self.decay)
-        self.model.compile(optimizer=self.optimizer_obj, loss=self.loss)
+        self.model.compile(optimizer=self.optimizer_obj, loss=self.loss, metrics=self.metrics)
 
     def fit(self, x, y, xv=None, yv=None, **kwargs):
         inputs = x.shape[1]
@@ -109,9 +120,9 @@ class DenseNeuralNetwork(object):
             self.y_labels = np.unique(y)
             y_class = np.zeros((y.shape[0], self.y_labels.size), dtype=np.int32)
             if yv is not None:
-                self.y_labels_val = np.unique(yv)
-                y_class_val = np.zeros((yv.shape[0], self.y_labels_val.size), dtype=np.int32)
-                for l, label in enumerate(self.y_labels_val):
+                y_labels_val = np.unique(yv)
+                y_class_val = np.zeros((yv.shape[0], y_labels_val.size), dtype=np.int32)
+                for l, label in enumerate(y_labels_val):
                     y_class_val[yv == label, l] = 1
                 validation_data = (xv, y_class_val)
             else:
@@ -150,11 +161,12 @@ class DenseNeuralNetwork(object):
         return
 
     def predict(self, x):
+        batch_size = x.shape[0] // 4
         if self.classifier:
-            y_prob = self.model.predict(x, batch_size=self.batch_size)
+            y_prob = self.model.predict(x, batch_size=batch_size)
             y_out = self.y_labels[np.argmax(y_prob, axis=1)].ravel()
         else:
-            y_out = self.model.predict(x, batch_size=self.batch_size).ravel()
+            y_out = self.model.predict(x, batch_size=batch_size).ravel()
         return y_out
 
     def predict_proba(self, x):

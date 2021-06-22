@@ -11,11 +11,12 @@ from os.path import join, exists
 import os
 from datetime import datetime
 import logging
-from keras.losses import huber_loss
-
+from tensorflow.keras.losses import huber
+# from memory_profiler import profile
 import optuna
-from aimlutils.hyper_opt.utils import trial_suggest_loader
-from aimlutils.hyper_opt.base_objective import *
+from aimlutils.echo.src.trial_suggest import * 
+from aimlutils.echo.src.base_objective import *
+import tensorflow as tf
 
 
 logger = logging.getLogger(__name__)
@@ -27,14 +28,15 @@ scalers = {"MinMaxScaler": MinMaxScaler,
 
 class_metrics = {"accuracy": accuracy_score,
                  "heidke": heidke_skill_score,
-                 "peirce": peirce_skill_score}
+                 "peirce": peirce_skill_score,
+                 "confusion": confusion_matrix}
 
 reg_metrics = {"rmse": root_mean_squared_error,
                "mae": mean_absolute_error,
                "r2": r2_corr,
                "hellinger": hellinger_distance,
                "mse": mean_squared_error,
-               "huber": huber_loss}
+               "huber": huber}
 
 def leaky(x):
     return tf.nn.leaky_relu(x, alpha=0.01)
@@ -44,24 +46,19 @@ def ranked_probability_score(y_true_discrete, y_pred_discrete):
     y_true_cumulative = np.cumsum(y_true_discrete)
     return np.mean((y_pred_cumulative - y_true_cumulative) ** 2) / float(y_pred_discrete.shape[1] - 1)
 
+# @profile(precision=4)
 def objective(trial, config):
+    
+    tf.config.threading.set_inter_op_parallelism_threads(2)
+    tf.config.threading.set_intra_op_parallelism_threads(2)
 
     # Get list of hyperparameters from the config
     hyperparameters = config["optuna"]["parameters"]
 
     # Now update some hyperparameters via custom rules
-    class_activation = trial_suggest_loader(trial, hyperparameters["class_activation"])
-    class_hidden_layers = trial_suggest_loader(trial, hyperparameters["class_hidden_layers"])
-    class_hidden_neurons = trial_suggest_loader(trial, hyperparameters["class_hidden_neurons"])
-    class_lr = trial_suggest_loader(trial, hyperparameters["class_lr"])
-    class_l2_weight = trial_suggest_loader(trial, hyperparameters["class_l2_weight"])
-    class_batch_size = trial_suggest_loader(trial, hyperparameters["class_batch_size"])
-    reg_activation = trial_suggest_loader(trial, hyperparameters["reg_activation"])
-    reg_hidden_layers = trial_suggest_loader(trial, hyperparameters["reg_hidden_layers"])
-    reg_hidden_neurons = trial_suggest_loader(trial, hyperparameters["reg_hidden_neurons"])
-    reg_lr = trial_suggest_loader(trial, hyperparameters["reg_lr"])
-    reg_l2_weight = trial_suggest_loader(trial, hyperparameters["reg_l2_weight"])    
-    reg_batch_size = trial_suggest_loader(trial, hyperparameters["reg_batch_size"])
+    trial_hyperparameters = {}
+    for param_name in hyperparameters.keys():
+        trial_hyperparameters[param_name] = trial_suggest_loader(trial, hyperparameters[param_name])
     
     data_path = config["data_path"]
     out_path = config["out_path"]
@@ -74,8 +71,10 @@ def objective(trial, config):
     subsample = config["subsample"]
     if not exists(out_path):
         os.makedirs(out_path)
+    
+    start = datetime.now()
+    logger.info(f"Loading training data for trial: {trial.number}")
     train_files, val_files, test_files = subset_data_files_by_date(data_path, **config["subset_data"])
-    print("Loading training data")
     scaled_input_train, \
     labels_train, \
     transformed_out_train, \
@@ -84,7 +83,7 @@ def objective(trial, config):
     meta_train = assemble_data_files(train_files, input_cols, output_cols, input_transforms,
                                          output_transforms, input_scaler, subsample=subsample)
 
-    print("Loading testing data")
+    logger.info("Loading testing data")
     scaled_input_test, \
     labels_test, \
     transformed_out_test, \
@@ -93,12 +92,13 @@ def objective(trial, config):
     meta_test = assemble_data_files(test_files, input_cols, output_cols, input_transforms,
                                     output_transforms, input_scaler, output_scalers=output_scalers,
                                     train=False, subsample=subsample)
+    logger.info(f"Finished loading data took: {datetime.now() - start}")
+    start = datetime.now()
     input_scaler_df = pd.DataFrame({"mean": input_scaler.mean_, "scale": input_scaler.scale_},
                                    index=input_cols)
     out_scales_list = []
     for var in output_scalers.keys():
         for out_class in output_scalers[var].keys():
-            print(var, out_class)
             if output_scalers[var][out_class] is not None:
                 out_scales_list.append(pd.DataFrame({"mean": output_scalers[var][out_class].mean_,
                                                      "scale": output_scalers[var][out_class].scale_},
@@ -106,80 +106,86 @@ def objective(trial, config):
     out_scales_df = pd.concat(out_scales_list)
     out_scales_df.to_csv(join(out_path, "output_scale_values.csv"),
                          index_label="output")
+    logger.info(f"Finished scaling data took: {datetime.now() - start}")
 
     beginning = datetime.now()
-    print(f"BEGINNING: {beginning}")
+    logger.info(f"BEGINNING model training: {beginning}")
     
-    # initialize neural networks that will only be defined once and trained in epoch loop
-    classifiers = dict()
-    for output_col in output_cols:
-        classifiers[output_col] = DenseNeuralNetwork(hidden_layers=class_hidden_layers,
-                                                     hidden_neurons=class_hidden_neurons,
-                                                     lr=class_lr,
-                                                     l2_weight=class_l2_weight,
-                                                     activation=class_activation,
-                                                     batch_size=class_batch_size,
-                                                     **config["classifier_networks"])
-    regressors = dict()
-    for output_col in output_cols:
-        regressors[output_col] = dict()
-        for label in [l for l in list(output_transforms[output_col].keys()) if l != 0]:
-            regressors[output_col][label] = DenseNeuralNetwork(hidden_layers=reg_hidden_layers,
-                                                   hidden_neurons=reg_hidden_neurons,
-                                                   lr=reg_lr,
-                                                   l2_weight=reg_l2_weight,
-                                                   activation=reg_activation,
-                                                   batch_size=reg_batch_size,
-                                                   **config["regressor_networks"])
-    reg_index = []
-    for output_col in output_cols:
-        for label in list(output_transforms[output_col].keys()):
-            if label != 0:
-                reg_index.append(output_col + f"_{label:d}")
-    test_prediction_values = np.zeros((scaled_out_test.shape[0], len(reg_index)))
-    test_prediction_labels = np.zeros(scaled_out_test.shape)
-    scores = []
-    for epoch in range(config["epochs"]):
-        score = 0
-        for o, output_col in enumerate(output_cols):
-            print(f"Train {output_col} Classifer - epoch: {epoch}")
-            hist = classifiers[output_col].fit(scaled_input_train,
-                                               labels_train[output_col],
-                                               scaled_input_test,
-                                               labels_test[output_col])
-            print("Evaluate Classifier", output_col)
-            test_prediction_labels[:, o] = classifiers[output_col].predict(scaled_input_test)
-            true = OneHotEncoder(sparse=False).fit_transform(labels_test[output_col].to_numpy().reshape(-1, 1))
-            pred = OneHotEncoder(sparse=False).fit_transform(pd.DataFrame(test_prediction_labels[:, o]))
-            score += ranked_probability_score(true, pred)
-            for l, label in enumerate(list(output_transforms[output_col].keys())):
+    with tf.device("/CPU:0"):
+        # initialize neural networks that will only be defined once and trained in epoch loop
+        classifiers = dict()
+        for output_col in output_cols:
+            classifiers[output_col] = DenseNeuralNetwork(hidden_layers=trial_hyperparameters["class_hidden_layers"],
+                                                         hidden_neurons=trial_hyperparameters["class_hidden_neurons"],
+                                                         lr=trial_hyperparameters["class_lr"],
+                                                         l2_weight=trial_hyperparameters["class_l2_weight"],
+                                                         activation=trial_hyperparameters["class_activation"],
+                                                         batch_size=trial_hyperparameters["class_batch_size"],
+                                                         **config["classifier_networks"])
+        regressors = dict()
+        for output_col in output_cols:
+            regressors[output_col] = dict()
+            for label in [l for l in list(output_transforms[output_col].keys()) if l != 0]:
+                regressors[output_col][label] = DenseNeuralNetwork(hidden_layers=trial_hyperparameters["reg_hidden_layers"],
+                                                       hidden_neurons=trial_hyperparameters["reg_hidden_neurons"],
+                                                       lr=trial_hyperparameters["reg_lr"],
+                                                       l2_weight=trial_hyperparameters["reg_l2_weight"],
+                                                       activation=trial_hyperparameters["reg_activation"],
+                                                       batch_size=trial_hyperparameters["reg_batch_size"],
+                                                       **config["regressor_networks"])
+        reg_index = []
+        for output_col in output_cols:
+            for label in list(output_transforms[output_col].keys()):
                 if label != 0:
-                    print(f"Train {output_col} - {label} Regressor - epoch: {epoch}")
-                    hist = regressors[output_col][label].fit(scaled_input_train.loc[labels_train[output_col] == label],
-                                                             scaled_out_train.loc[labels_train[output_col] == label, output_col],
-                                                             scaled_input_test.loc[labels_test[output_col] == label],
-                                                             scaled_out_test.loc[labels_test[output_col] == label, output_col])
-                    if label > 0:
-                        out_label = "pos"
-                    else:
-                        out_label = "neg"
-                    test_prediction_values[:, l] = output_scalers[output_col][label].inverse_transform(regressors[output_col][label].predict(scaled_input_test))
-                    score += mean_squared_error(transformed_out_test.loc[labels_test[output_col] == label, output_col],
-                                                test_prediction_values[labels_test[output_col] == label, l])
-        scores.append(score)
-        trial.report(score, step = epoch)
-        if trial.should_prune():
-            raise optuna.TrialPruned()
-    print(f"Running the model took: {datetime.now() - beginning}")
+                    reg_index.append(output_col + f"_{label:d}")
+        test_prediction_values = np.zeros((scaled_out_test.shape[0], len(reg_index)))
+        test_prediction_labels = np.zeros(scaled_out_test.shape)
+        logger.info(f"Finished initializing models took: {datetime.now() - beginning}")
+
+        for epoch in range(config["epochs"]):
+            logger.info(f"Training epoch: {epoch}")
+            start = datetime.now()
+            score = 0
+            for o, output_col in enumerate(output_cols):
+                logger.info(f"Train {output_col} Classifer - epoch: {epoch}")
+                hist = classifiers[output_col].fit(scaled_input_train,
+                                                   labels_train[output_col])
+                logger.info(f"Evaluate Classifier: {output_col}")
+                test_prediction_labels[:, o] = classifiers[output_col].predict(scaled_input_test)
+                logger.info(f"test_prediction_labels[:, o] min: {np.min(test_prediction_labels[:, o])} max: {np.max(test_prediction_labels[:, o])}")
+                true = OneHotEncoder(sparse=False).fit_transform(labels_test[output_col].to_numpy().reshape(-1, 1))
+                pred = OneHotEncoder(sparse=False).fit_transform(pd.DataFrame(test_prediction_labels[:, o]))
+                score += ranked_probability_score(true, pred)
+                logger.info(f"Finished training epoch {epoch} of classifier {output_col} in: {datetime.now() - start}")            
+                for l, label in enumerate(list(output_transforms[output_col].keys())):
+                    start = datetime.now()
+                    if label != 0:
+                        logger.info(f"Train {output_col} - {label} Regressor - epoch: {epoch}")
+                        hist = regressors[output_col][label].fit(scaled_input_train.loc[labels_train[output_col] == label],
+                                                                 scaled_out_train.loc[labels_train[output_col] == label, output_col])
+                        if label > 0:
+                            out_label = "pos"
+                        else:
+                            out_label = "neg"
+                        test_prediction_values[:, l] = output_scalers[output_col][label].inverse_transform(regressors[output_col][label].predict(scaled_input_test))
+                        score += mean_squared_error(transformed_out_test.loc[labels_test[output_col] == label, output_col],
+                                                    test_prediction_values[labels_test[output_col] == label, l])
+                        logger.info(f"Finished training epoch {epoch} of regressor {output_col} and label {label} in: {datetime.now() - start}")
+            
+            trial.report(score, step = epoch)
+            if trial.should_prune():
+                raise optuna.TrialPruned()
+    logger.info(f"Running entire model took: {datetime.now() - beginning}")
     
     return score
 
+
 class Objective(BaseObjective):
 
-    def __init__(self, study, config, metric = "val_loss", device = "cpu"):
+    def __init__(self, config, metric = "val_loss", device = "cpu"):
 
         # Initialize the base class
-        BaseObjective.__init__(self, study, config, metric, device)
+        BaseObjective.__init__(self, config, metric, device)
 
     def train(self, trial, conf):
 
@@ -188,33 +194,3 @@ class Objective(BaseObjective):
             "val_loss": result
         }
         return results_dictionary
-
-if __name__ == "__main__":
-    main()
-    print("Starting script...")
-
-    # parse arguments from config/yaml file
-    parser = argparse.ArgumentParser()
-    parser.add_argument("config", help="Path to config file")
-    args = parser.parse_args()
-    with open(args.config) as config_file:
-        config = yaml.load(config_file, Loader=yaml.FullLoader)
-
-    study = optuna.create_study(direction=config["direction"],
-                                pruner=optuna.pruners.MedianPruner())
-    study.optimize(objective, config, n_trials=config["n_trials"])
-    pruned_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]
-    complete_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
-    print("Study statistics: ")
-    print("  Number of finished trials: ", len(study.trials))
-    print("  Number of pruned trials: ", len(pruned_trials))
-    print("  Number of complete trials: ", len(complete_trials))
-
-    print("Best trial:")
-    trial = study.best_trial
-
-    print("  Value: ", trial.value)
-
-    print("  Params: ")
-    for key, value in trial.params.items():
-        print("    {}: {}".format(key, value))
