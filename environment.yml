@@ -19,5 +19,8 @@ dependencies:
   - cartopy
   - pip
   - s3fs
+  - pyarrow
   - pip:
     - tensorflow==2.4
+    - tensorflow-probability==0.12
+    - .
