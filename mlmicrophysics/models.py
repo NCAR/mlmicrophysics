@@ -162,8 +162,10 @@ class DenseNeuralNetwork(object):
         nn_ds.to_netcdf(filename, encoding={'layer_names':{'dtype': 'S1'}})
         return
 
-    def predict(self, x):
-        batch_size = x.shape[0] // 4
+
+    def predict(self, x, batch_size=None):
+        if batch_size is None:
+            batch_size = self.batch_size
         if self.classifier:
             y_prob = self.model.predict(x, batch_size=batch_size)
             y_out = self.y_labels[np.argmax(y_prob, axis=1)].ravel()
@@ -171,8 +173,10 @@ class DenseNeuralNetwork(object):
             y_out = self.model.predict(x, batch_size=batch_size).ravel()
         return y_out
 
-    def predict_proba(self, x):
-        y_prob = self.model.predict(x, batch_size=self.batch_size)
+    def predict_proba(self, x, batch_size=None):
+        if batch_size is None:
+            batch_size = self.batch_size
+        y_prob = self.model.predict(x, batch_size=batch_size)
         return y_prob
 
 
