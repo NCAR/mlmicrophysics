@@ -21,7 +21,8 @@ jobs:
     - name: Install dependencies
       run: |
         # $CONDA is an environment variable pointing to the root of the miniconda directory
-        $CONDA/bin/conda env update --file environment.yml --name base
+        $CONDA/bin/conda env create --file environment.yml --name base2 
+        $CONDA/bin/conda activate base2
     - name: Lint with flake8
       run: |
         $CONDA/bin/conda install flake8
