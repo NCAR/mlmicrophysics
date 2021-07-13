@@ -2,8 +2,8 @@ name: mlmicro
 channels:
   - conda-forge
 dependencies:
-  - python=3.7
-  - numpy=1.18.*
+  - python=3.8
+  - numpy
   - scipy
   - matplotlib
   - xarray
@@ -20,4 +20,4 @@ dependencies:
   - pip
   - s3fs
   - pip:
-    - tensorflow
+    - tensorflow==2.4
