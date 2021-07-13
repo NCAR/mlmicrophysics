@@ -3,6 +3,8 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.optimizers import Adam, SGD
 import tensorflow.keras.backend as K
+from sklearn.metrics import confusion_matrix, accuracy_score, mean_absolute_error, mean_squared_error
+from mlmicrophysics.metrics import heidke_skill_score, peirce_skill_score, hellinger_distance, root_mean_squared_error, r2_corr
 import numpy as np
 import xarray as xr
 import pandas as pd

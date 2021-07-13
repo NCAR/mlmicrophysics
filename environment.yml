@@ -21,3 +21,4 @@ dependencies:
   - s3fs
   - pip:
     - tensorflow
+    - tensorflow-probability==0.12.2
