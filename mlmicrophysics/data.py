@@ -219,7 +219,7 @@ def convert_to_dataframe(dataset, variables, times, time_var,
         data_frames.append(time_df.loc[valid].reset_index())
         print(data_frames[-1])
         del time_df
-    return pd.concat(data_frames)
+    return pd.concat(data_frames, ignore_index=True)
 
 
 def load_csv_data(csv_path, index_col="Index"):
