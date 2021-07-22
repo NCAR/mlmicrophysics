@@ -48,10 +48,10 @@ def timestep_input_maps(timestep_ds,
     plt.close()
 
 
-pretty_names = {"qrtend_TAU_1": "$\log_{10} dq_r/dt$",
-                "nctend_TAU_1": "$\log_{10} dn_c/dt$",
-                "nrtend_TAU_1": "$\log_{10} dn_r/dt > 0$",
-                "nrtend_TAU_-1": "$\log_{10} dn_r/dt < 0$"}
+pretty_names = {"qrtend_TAU_1": "$\\log_{10} dq_r/dt$",
+                "nctend_TAU_1": "$\\log_{10} dn_c/dt$",
+                "nrtend_TAU_1": "$\\log_{10} dn_r/dt > 0$",
+                "nrtend_TAU_-1": "$\\log_{10} dn_r/dt < 0$"}
 
 
 def error_histogram(observations, predictions, observation_label, prediction_label,
