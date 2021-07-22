@@ -18,8 +18,7 @@ metrics_dict = {"accuracy": accuracy_score,
                  "mae": mean_absolute_error,
                  "r2": r2_corr,
                  "hellinger": hellinger_distance,
-                 "mse": mean_squared_error,
-                 "huber": huber}
+                 "mse": mean_squared_error}
 
 class DenseNeuralNetwork(object):
     """
@@ -73,7 +72,10 @@ class DenseNeuralNetwork(object):
         self.y_labels = None
         self.y_labels_val = None
         self.model = None
-        self.metrics = [metrics_dict[m]() for m in metrics]
+        if metrics is not None:
+          self.metrics = [metrics_dict[m]() for m in metrics]
+        else:
+          self.metrics = None
 
     def build_neural_network(self, inputs, outputs):
         """
