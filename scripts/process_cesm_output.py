@@ -98,8 +98,7 @@ def process_cesm_file_subset(filename, staggered_variables=None, time_var="time"
             time_sub_df.to_csv(join(out_path, "{0}_{1:06d}.csv".format(out_start, time_hours)),
                                index_label="Index")
         elif out_format == "parquet":
-            time_sub_df.to_parquet(join(out_path, "{0}_{1:06d}.parquet".format(out_start, time_hours)),
-                                   index_label="Index")
+            time_sub_df.to_parquet(join(out_path, "{0}_{1:06d}.parquet".format(out_start, time_hours)))
     model_ds.close()
     del model_ds
     return
