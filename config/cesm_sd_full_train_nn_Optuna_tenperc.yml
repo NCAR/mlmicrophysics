@@ -1,60 +1,50 @@
-data_path: "/glade/p/cisl/aiml/dgagne/cam_mp_files_run5_full_csv/"
-out_path: "/glade/p/cisl/aiml/ggantos/cam_run5_model_base_full/"
+data_path: "/glade/p/cisl/aiml/ggantos/cam_mp_files_sd_full_csv/"
+out_path: "/glade/p/cisl/aiml/ggantos/micro/optuna/dataset_tenperc/"
 subset_data:
-  train_date_start: 861
-  train_date_end: 8800
-  test_date_start: 8856
-  test_date_end: 17466
+  train_date_start: 5
+  train_date_end: 7000
+  test_date_start: 7005
+  test_date_end: 8760
 random_seed: 328942
-subsample: 1.0
+subsample: 0.1
 classifier_metrics: ["acc", "pss", "hss"]
 regressor_metrics: ["mse", "mae", "r2", "hellinger"]
-input_cols: ["QC_TAU_in", "NC_TAU_in", "QR_TAU_in", "NR_TAU_in", "RHO_CLUBB_lev",
+input_cols: ["QC_sd_in", "NC_sd_in", "QR_sd_in", "NR_sd_in", "RHO_CLUBB_lev",
              "lamc", "lamr", "lcldm", "n0r", "pgam", "precip_frac"]
-output_cols: ["qrtend_TAU", "nctend_TAU", "nrtend_TAU"]
+output_cols: ["qrtend_sd", "nctend_sd", "nrtend_sd"]
 input_transforms:
-  QC_TAU_in: "log10_transform"
-  NC_TAU_in: "log10_transform"
-  QR_TAU_in: "log10_transform"
-  NR_TAU_in: "log10_transform"
+  QC_sd_in: "log10_transform"
+  NC_sd_in: "log10_transform"
+  QR_sd_in: "log10_transform"
+  NR_sd_in: "log10_transform"
   lamc: "log10_transform"
   lamr: "log10_transform"
   pgam: "log10_transform"
   n0r: "log10_transform"
 input_scaler: "StandardScaler"
 output_transforms:
-  qrtend_TAU:
+  qrtend_sd:
     0: ["<=", 1e-18, "zero_transform", "None"]
     1: [">", 1e-18, "log10_transform", "StandardScaler"]
-  nctend_TAU:
+  nctend_sd:
     0: [">=", -1e-18, "zero_transform", "None"]
     1: ["<", -1e-18, "neg_log10_transform", "StandardScaler"]
-  nrtend_TAU:
+  nrtend_sd:
     -1: ["<", 0, "neg_log10_transform", "StandardScaler"]
     0: ["==", 0, "zero_transform", "None"]
     1: [">", 0, "log10_transform", "StandardScaler"]
 classifier_networks:
-  hidden_layers: 4
-  hidden_neurons: 60
   loss: "categorical_crossentropy"
   output_activation: "softmax"
-  activation: "relu"
   epochs: 10
   batch_size: 4096
   verbose: 1
-  lr: 0.001
-  l2_weight: 1.0e-4
   classifier: 1
 regressor_networks:
-  hidden_layers: 4
-  hidden_neurons: 60
   loss: "mse"
   output_activation: "linear"
-  activation: "relu"
   epochs: 10
   batch_size: 4096
   verbose: 1
-  lr: 0.001
-  l2_weight: 1.0e-4
   classifier: 0
 

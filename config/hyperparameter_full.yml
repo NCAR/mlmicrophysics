@@ -1,0 +1,86 @@
+log:
+  save_path: "/glade/p/cisl/aiml/ggantos/micro/optuna/dataset_full/log.txt"
+
+slurm:
+  jobs: 2
+  kernel: "ncar_pylib ncar_20200417"
+  bash: ["module load gnu/8.3.0 openmpi/3.1.4 python/3.7.5 cuda/10.1"]
+  batch:
+    account: "NAML0001"
+    mem: "256G"
+    n: 8
+    t: "23:59:00"
+    J: "hyper_opt"
+    o: "hyper_opt.out"
+    e: "hyper_opt.err"
+
+optuna:
+  name: "micro_optimization.db"
+  reload: 1
+  objective: "/glade/work/ggantos/mlmicrophysics/objective.py"
+  direction: "minimize"
+  metric: "val_loss"
+  n_trials: 3
+  gpu: False
+  save_path: "/glade/p/cisl/aiml/ggantos/micro/optuna/dataset_full/"
+  sampler:
+    type: "TPESampler"
+  parameters:
+    class_activation:
+      type: "categorical"
+      settings:
+        name: "class_activation"
+        choices: ["relu", "leaky", "elu", "selu", "tanh"]
+    class_hidden_layers:
+      type: "int"
+      settings:
+        name: "class_hidden_layers"
+        low: 3
+        high: 5
+    class_hidden_neurons:
+      type: "int"
+      settings:
+        name: "class_hidden_neurons"
+        low: 40
+        high: 80
+    class_lr:
+      type: "float"
+      settings:
+        name: "class_lr"
+        low: 0.00001
+        high: 0.01
+    class_l2_weight:
+      type: "float"
+      settings:
+        name: "class_l2_weight"
+        low: 0.0
+        high: 0.01
+    reg_activation:
+      type: "categorical"
+      settings:
+        name: "reg_activation"
+        choices: ["relu", "leaky", "elu", "selu", "tanh"]
+    reg_hidden_layers:
+      type: "int"
+      settings:
+        name: "reg_hidden_layers"
+        low: 3
+        high: 5
+    reg_hidden_neurons:
+      type: "int"
+      settings:
+        name: "reg_hidden_neurons"
+        low: 40
+        high: 80
+    reg_lr:
+      type: "float"
+      settings:
+        name: "reg_lr"
+        low: 0.00001
+        high: 0.01
+    reg_l2_weight:
+      type: "float"
+      settings:
+        name: "reg_l2_weight"
+        low: 0.0
+        high: 0.01

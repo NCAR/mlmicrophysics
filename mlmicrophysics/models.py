@@ -1,12 +1,25 @@
-from tensorflow.keras.layers import Input, Dense, Dropout, GaussianNoise, Activation, Concatenate, BatchNormalization
+from tensorflow.keras.layers import Input, Dense, Dropout, GaussianNoise, Activation, Concatenate, BatchNormalization, LeakyReLU
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.optimizers import Adam, SGD
 import tensorflow.keras.backend as K
+from sklearn.metrics import confusion_matrix, accuracy_score, mean_absolute_error, mean_squared_error
+from mlmicrophysics.metrics import heidke_skill_score, peirce_skill_score, hellinger_distance, root_mean_squared_error, r2_corr
 import numpy as np
 import xarray as xr
 import pandas as pd
 
+
+metrics_dict = {"accuracy": accuracy_score,
+                 "heidke": heidke_skill_score,
+                 "peirce": peirce_skill_score,
+                 "confusion": confusion_matrix,
+                 "rmse": root_mean_squared_error,
+                 "mae": mean_absolute_error,
+                 "r2": r2_corr,
+                 "hellinger": hellinger_distance,
+                 "mse": mean_squared_error,
+                 "huber": huber}
 
 class DenseNeuralNetwork(object):
     """
@@ -30,14 +43,15 @@ class DenseNeuralNetwork(object):
         verbose: Level of detail to provide during training
         model: Keras Model object
     """
-    def __init__(self, hidden_layers=1, hidden_neurons=4, activation="relu",
+    def __init__(self, hidden_layers=1, hidden_neurons=4, activation="relu", leaky_alpha=0.1,
                  output_activation="linear", optimizer="adam", loss="mse", use_noise=False, noise_sd=0.01,
                  lr=0.001, use_dropout=False, dropout_alpha=0.1, batch_size=128, epochs=2,
                  l2_weight=0.01, sgd_momentum=0.9, adam_beta_1=0.9, adam_beta_2=0.999, decay=0, verbose=0,
-                 classifier=False):
+                 classifier=False, metrics=None):
         self.hidden_layers = hidden_layers
         self.hidden_neurons = hidden_neurons
         self.activation = activation
+        self.leaky_alpha = leaky_alpha
         self.output_activation = output_activation
         self.optimizer = optimizer
         self.optimizer_obj = None
@@ -59,7 +73,7 @@ class DenseNeuralNetwork(object):
         self.y_labels = None
         self.y_labels_val = None
         self.model = None
-        self.optimizer_obj = None
+        self.metrics = [metrics_dict[m]() for m in metrics]
 
     def build_neural_network(self, inputs, outputs):
         """
@@ -71,23 +85,30 @@ class DenseNeuralNetwork(object):
         """
         nn_input = Input(shape=(inputs,), name="input")
         nn_model = nn_input
+        
         for h in range(self.hidden_layers):
-            nn_model = Dense(self.hidden_neurons, activation=self.activation,
-                             kernel_regularizer=l2(self.l2_weight), name=f"dense_{h:02d}")(nn_model)
+            nn_model = Dense(self.hidden_neurons,
+                             kernel_regularizer=l2(self.l2_weight),
+                             name=f"dense_{h:02d}")(nn_model)
+            if self.activation == "leaky":
+                nn_model = LeakyReLU(self.leaky_alpha, name="hidden_activation_{0:02d}".format(h))(nn_model)
+            else:
+                nn_model = Activation(self.activation, name="hidden_activation_{0:02d}".format(h))(nn_model)
+
             if self.use_dropout:
                 nn_model = Dropout(self.dropout_alpha, name=f"dropout_h_{h:02d}")(nn_model)
             if self.use_noise:
                 nn_model = GaussianNoise(self.noise_sd, name=f"ganoise_h_{h:02d}")(nn_model)
-        nn_model = Dense(outputs,
-                         activation=self.output_activation, name=f"dense_{self.hidden_layers:02d}")(nn_model)
+        nn_model = Dense(outputs, activation=self.output_activation,
+                         name=f"dense_{self.hidden_layers:02d}")(nn_model)
         self.model = Model(nn_input, nn_model)
         if self.optimizer == "adam":
             self.optimizer_obj = Adam(lr=self.lr, beta_1=self.adam_beta_1, beta_2=self.adam_beta_2, decay=self.decay)
         elif self.optimizer == "sgd":
             self.optimizer_obj = SGD(lr=self.lr, momentum=self.sgd_momentum, decay=self.decay)
-        self.model.compile(optimizer=self.optimizer_obj, loss=self.loss)
+        self.model.compile(optimizer=self.optimizer_obj, loss=self.loss, metrics=self.metrics)
 
-    def fit(self, x, y, xv=None, yv=None):
+    def fit(self, x, y, xv=None, yv=None, **kwargs):
         inputs = x.shape[1]
         if len(y.shape) == 1:
             outputs = 1
@@ -98,12 +119,12 @@ class DenseNeuralNetwork(object):
         self.build_neural_network(inputs, outputs)
         self.model.summary()
         if self.classifier:
-            y_labels = np.unique(y)
-            y_class = np.zeros((y.shape[0], y_labels.size), dtype=np.int32)
+            self.y_labels = np.unique(y)
+            y_class = np.zeros((y.shape[0], self.y_labels.size), dtype=np.int32)
             if yv is not None:
                 y_labels_val = np.unique(yv)
                 y_class_val = np.zeros((yv.shape[0], y_labels_val.size), dtype=np.int32)
-                for l, label in enumerate(self.y_labels_val):
+                for l, label in enumerate(y_labels_val):
                     y_class_val[yv == label, l] = 1
                 validation_data = (xv, y_class_val)
             else:
@@ -112,14 +133,15 @@ class DenseNeuralNetwork(object):
                 y_class[y == label, l] = 1
             self.model.fit(x, y_class, batch_size=self.batch_size,
                            epochs=self.epochs, verbose=self.verbose,
-                           validation_data=validation_data)
+                           validation_data=validation_data, **kwargs)
         else:
             if xv is None or yv is None:
                 validation_data = None
             else:
                 validation_data = (xv, yv)
             self.model.fit(x, y, batch_size=self.batch_size, epochs=self.epochs,
-                           verbose=self.verbose, validation_data=validation_data)
+                           verbose=self.verbose, validation_data=validation_data,
+                           **kwargs)
         return self.model.history.history
 
     def save_fortran_model(self, filename):
@@ -139,6 +161,7 @@ class DenseNeuralNetwork(object):
         nn_ds.attrs["num_layers"] = num_dense
         nn_ds.to_netcdf(filename, encoding={'layer_names':{'dtype': 'S1'}})
         return
+
 
     def predict(self, x, batch_size=None):
         if batch_size is None:

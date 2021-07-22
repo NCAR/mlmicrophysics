@@ -64,8 +64,6 @@ def main():
                                               train=False, subsample=subsample)
     input_scaler_df = pd.DataFrame({"mean": input_scaler.mean_, "scale": input_scaler.scale_},
                                    index=input_cols)
-    print(transformed_out_test.columns)
-    print(transformed_out_test.index)
     meta_test.to_csv(join(out_path, "meta_test.csv"), index_label="index")
     input_scaler_df.to_csv(join(out_path, "input_scale_values.csv"), index_label="input")
     out_scales_list = []
@@ -77,7 +75,6 @@ def main():
                                                      "scale": output_scalers[var][out_class].scale_},
                                                     index=[var + "_" + str(out_class)]))
     out_scales_df = pd.concat(out_scales_list)
-    print(out_scales_df)
     out_scales_df.to_csv(join(out_path, "output_scale_values.csv"),
                          index_label="output")
 
@@ -100,8 +97,10 @@ def main():
     for o, output_col in enumerate(output_cols):
         print("Train Classifer ", output_col)
         classifiers[output_col] = DenseNeuralNetwork(**config["classifier_networks"])
-        classifiers[output_col].fit(scaled_input_train, labels_train[output_col],
-                                    scaled_input_test, labels_test[output_col])
+        hist = classifiers[output_col].fit(scaled_input_train,
+                                           labels_train[output_col],
+                                           scaled_input_test,
+                                           labels_test[output_col])
         classifiers[output_col].save_fortran_model(join(config["out_path"],
                                                         "dnn_{0}_class_fortran.nc".format(output_col[0:2])))
         classifiers[output_col].model.save(join(config["out_path"],"dnn_{0}_class.h5".format(output_col[0:2])))
@@ -118,11 +117,10 @@ def main():
             if label != 0:
                 print("Train Regressor ", output_col, label)
                 regressors[output_col][label] = DenseNeuralNetwork(**config["regressor_networks"])
-                regressors[output_col][label].fit(scaled_input_train.loc[labels_train[output_col] == label],
-                                                     scaled_out_train.loc[labels_train[output_col] == label, output_col],
-                                                     scaled_input_test.loc[labels_test[output_col] == label],
-                                                     scaled_out_test.loc[labels_test[output_col] == label, output_col])
-
+                hist = regressors[output_col][label].fit(scaled_input_train.loc[labels_train[output_col] == label],
+                                                         scaled_out_train.loc[labels_train[output_col] == label, output_col],
+                                                         scaled_input_test.loc[labels_test[output_col] == label],
+                                                         scaled_out_test.loc[labels_test[output_col] == label, output_col])
                 if label > 0:
                     out_label = "pos"
                 else:

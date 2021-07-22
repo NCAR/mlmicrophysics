@@ -1,5 +1,5 @@
 data_path: "/glade/p/cisl/aiml/dgagne/cam_mp_files_run5_full_csv/"
-out_path: "/glade/p/cisl/aiml/ggantos/cam_run5_model_base_full/"
+out_path: "/glade/p/cisl/aiml/ggantos/cam_run5_models_20190726_noL2/"
 subset_data:
   train_date_start: 861
   train_date_end: 8800
@@ -43,7 +43,7 @@ classifier_networks:
   batch_size: 4096
   verbose: 1
   lr: 0.001
-  l2_weight: 1.0e-4
+  l2_weight: 0
   classifier: 1
 regressor_networks:
   hidden_layers: 4
@@ -55,6 +55,6 @@ regressor_networks:
   batch_size: 4096
   verbose: 1
   lr: 0.001
-  l2_weight: 1.0e-4
+  l2_weight: 0
   classifier: 0
 
