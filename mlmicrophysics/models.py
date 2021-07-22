@@ -18,8 +18,7 @@ metrics_dict = {"accuracy": accuracy_score,
                  "mae": mean_absolute_error,
                  "r2": r2_corr,
                  "hellinger": hellinger_distance,
-                 "mse": mean_squared_error,
-                 "huber": huber}
+                 "mse": mean_squared_error}
 
 class DenseNeuralNetwork(object):
     """
