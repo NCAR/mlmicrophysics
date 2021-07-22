@@ -9,7 +9,7 @@ from mlmicrophysics.data import calc_pressure_field, calc_temperature, add_index
 from glob import glob
 from dask.distributed import Client, LocalCluster, wait
 import traceback
-from os import mkdir
+from os import makedirs
 
 
 def main():
@@ -25,13 +25,14 @@ def main():
     #                                  file_start=config["model_file_start"],
     #                                  file_end=config["model_file_end"])
     if not exists(config["out_path"]):
-        mkdir(config["out_path"])
+        makedirs(config["out_path"])
     #print(time_files)
 
     #filenames = np.sort(time_files["filename"].unique())
     filenames = sorted(glob(join(config["model_path"],
                                  config["model_file_start"] + "*" + config["model_file_end"])))
-
+    if "dt" not in config.keys():
+        config["dt"] = 1800
     if args.proc == 1:
         for filename in filenames:
             process_cesm_file_subset(filename,
@@ -40,7 +41,8 @@ def main():
                                      subset_variable=config["subset_variable"],
                                      subset_threshold=config["subset_threshold"],
                                      out_path=config["out_path"],
-                                     out_format=config["out_format"])
+                                     out_format=config["out_format"],
+                                     dt=config["dt"])
     else:
         cluster = LocalCluster(n_workers=0)
         cluster.scale(args.proc)
@@ -53,7 +55,8 @@ def main():
                    subset_threshold=config["subset_threshold"],
                    out_path=config["out_path"],
                    out_start=config["out_start"],
-                   out_format=config["out_format"])
+                   out_format=config["out_format"],
+                   dt=config["dt"])
         out = client.gather(futures)
         print(out)
         client.close()
@@ -62,7 +65,7 @@ def main():
 
 def process_cesm_file_subset(filename, staggered_variables=None, time_var="time", out_variables=None,
                              subset_variable=None, subset_threshold=None, out_path="./",
-                             out_start="cam_mp_data", out_format="csv"):
+                             out_start="cam_mp_data", out_format="csv", dt=1800):
     model_ds = xr.open_dataset(filename, decode_times=False)
     for staggered_variable in staggered_variables:
         model_ds[staggered_variable + "_lev"] = unstagger_vertical(model_ds, staggered_variable)
@@ -70,6 +73,14 @@ def process_cesm_file_subset(filename, staggered_variables=None, time_var="time"
     model_ds.update(add_index_coords(model_ds))
     model_ds["pressure"] = calc_pressure_field(model_ds)
     model_ds["temperature"] = calc_temperature(model_ds)
+    for var in ["QC", "QR", "NC", "NR"]:
+        if var + "_TAU_in" in model_ds.variables.keys():
+            model_ds[var + "_TAU_out"] = (model_ds[var + "_TAU_in"] + model_ds[var.lower() + "tend_TAU"] * dt)
+            model_ds[var + "_MG2_out"] = (model_ds[var + "_TAU_in"] + model_ds[var.lower() + "tend_MG2"] * dt)
+        else:
+            model_ds[var + "_sd_out"] = (model_ds[var + "_sd_in"] + model_ds[var.lower() + "tend_sd"] * dt)
+            model_ds[var + "_MG2_out"] = (model_ds[var + "_sd_in"] + model_ds[var.lower() + "tend_MG2"] * dt)
+
     times = model_ds[time_var]
     for time in times:
         time_hours = int(time * 24)
@@ -86,13 +97,16 @@ def process_cesm_file_subset(filename, staggered_variables=None, time_var="time"
         if out_format == "csv":
             time_sub_df.to_csv(join(out_path, "{0}_{1:06d}.csv".format(out_start, time_hours)),
                                index_label="Index")
+        elif out_format == "parquet":
+            time_sub_df.to_parquet(join(out_path, "{0}_{1:06d}.parquet".format(out_start, time_hours)),
+                                   index_label="Index")
     model_ds.close()
     del model_ds
     return
 
 
-def process_cesm_time_subset(times, time_var, model_path, model_file_start, model_file_end, staggered_variables, csv_variables,
-                             subset_variable, subset_threshold, csv_path):
+def process_cesm_time_subset(times, time_var, model_path, model_file_start, model_file_end, staggered_variables,
+                             csv_variables, subset_variable, subset_threshold, csv_path):
     try:
         model_ds = load_cam_output(model_path, file_start=model_file_start, file_end=model_file_end)
         model_sub_ds = model_ds.sel(time=times)
