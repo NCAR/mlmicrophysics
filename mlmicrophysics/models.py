@@ -44,7 +44,7 @@ class DenseNeuralNetwork(object):
     """
     def __init__(self, hidden_layers=1, hidden_neurons=32, activation="relu", leaky_alpha=0.1,
                  output_activation="linear", optimizer="adam", loss="mse", use_noise=False, noise_sd=0.01,
-                 learning_rate=0.001, use_dropout=False, dropout_alpha=0.1, batch_size=128, epochs=2,
+                 lr=0.001, use_dropout=False, dropout_alpha=0.1, batch_size=128, epochs=2,
                  l2_weight=0.01, sgd_momentum=0.9, adam_beta_1=0.9, adam_beta_2=0.999, decay=0, verbose=0,
                  classifier=False, metrics=None):
         self.hidden_layers = hidden_layers
