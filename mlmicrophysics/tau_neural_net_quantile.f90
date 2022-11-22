@@ -1,8 +1,8 @@
-module tau_neural_net_batch
+module tau_neural_net_quantile
     use module_neural_net
     implicit none
     integer, parameter, public :: i8 = selected_int_kind(18)
-    character(len = *), parameter :: neural_net_path = "/glade/p/cisl/aiml/dgagne/cam_run5_models_20190726/"
+    character(len = *), parameter :: neural_net_path = "/glade/work/dgagne/cam_mp_run6_quantile_nn/"
     integer, parameter :: num_inputs = 7
     integer, parameter :: num_outputs = 3
     integer, parameter :: batch_size = 1
@@ -24,7 +24,7 @@ contains
         !character(len=*), intent(in) :: neural_net_path
         ! Load each neural network from the neural net directory
         print*, "Begin loading neural nets"
-        call init_neural_net(neural_net_path // "dnn_tau_all.nc", batch_size, emulators%q_all)
+        call init_neural_net(neural_net_path // "quantile_neural_net_fortran.nc", batch_size, q_all)
         print*, "End loading neural nets"
         ! Load the scale values from a csv file.
         call load_quantile_scale_values(neural_net_path // "input_quantile_scaler.nc", input_scale_values)
@@ -33,7 +33,7 @@ contains
     end subroutine initialize_tau_emulators
 
 
-    subroutine tau_emulate_cloud_rain_interactions(qc, nc, qr, nr, rho, lcldm, n0r, pgam, &
+    subroutine tau_emulate_cloud_rain_interactions(qc, nc, qr, nr, rho, lcldm, &
             precip_frac, mgncol, q_small, qc_tend, qr_tend, nc_tend, nr_tend)
         ! Calculates emulated tau microphysics tendencies from neural networks.
         !
@@ -57,7 +57,7 @@ contains
         real(r8), dimension(mgncol), intent(out) :: qc_tend, qr_tend, nc_tend, nr_tend
         integer(i8) :: i, j
         real(r8), dimension(batch_size, num_inputs) :: nn_inputs, nn_quantile_inputs
-        integer, dimension(batch_size, num_outputs) :: nn_quantile_outputs, nn_outputs
+        real(r8), dimension(batch_size, num_outputs) :: nn_quantile_outputs, nn_outputs
         real(r8), parameter :: dt = 1800.0
         do i = 1, mgncol
             if (qc(i) >= q_small) then
@@ -69,10 +69,10 @@ contains
                 nn_inputs(1, 6) = precip_frac(i)
                 nn_inputs(1, 7) = lcldm(i)
                 call quantile_transform(nn_inputs, input_scale_values, nn_quantile_inputs)
-                call neural_net_predict(nn_inputs_quantile(i:i + 1), q_all, nn_quantile_outputs)
+                call neural_net_predict(nn_quantile_inputs, q_all, nn_quantile_outputs)
                 call quantile_inv_transform(nn_quantile_outputs, output_scale_values, nn_outputs)
                 qr_tend(i) = (nn_outputs(1, 1) - qr(i)) / dt
-                qc_tend(i) = -qr_tend
+                qc_tend(i) = -qr_tend(i)
                 nc_tend(i) = (nn_outputs(1, 2) - nc(i)) / dt
                 nr_tend(i) = (nn_outputs(1, 3) - nr(i)) / dt
             else
@@ -84,4 +84,4 @@ contains
         end do
     end subroutine tau_emulate_cloud_rain_interactions
 
-end module tau_neural_net_batch
+end module tau_neural_net_quantile

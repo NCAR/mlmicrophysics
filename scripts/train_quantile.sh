@@ -10,5 +10,6 @@
 #PBS -k eod
 conda activate mlmicro
 echo `which python`
+module load gnu
 cd ~/mlmicrophysics/scripts
 python -u train_quantile_neural_nets.py ../config/cesm_tau_run6_train_quantile_nn.yml

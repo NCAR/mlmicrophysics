@@ -247,24 +247,28 @@ contains
     subroutine load_quantile_scale_values(filename, scale_values)
         character(len = *), intent(in) :: filename
         real(kind = 8), allocatable, intent(out) :: scale_values(:, :)
-        character(*), parameter :: quantile_dim_name, column_dim_name, ref_var_name, quant_var_name
+        real(kind = 8), allocatable :: temp_scale_values(:, :)
+        character(len=8) :: quantile_dim_name = "quantile" 
+        character(len=7) :: column_dim_name = "column"
+        character(len=9) :: ref_var_name = "reference" 
+        character(len=9) :: quant_var_name = "quantiles"
         integer :: ncid, quantile_id, column_id, quantile_dim, column_dim, ref_var_id, quant_var_id
-        quantile_dim_name = "quantile"
-        column_dim_name = "column"
-        ref_var_name = "reference"
-        quant_var_name = "quantiles"
         call check(nf90_open(filename, nf90_nowrite, ncid))
         call check(nf90_inq_dimid(ncid, quantile_dim_name, quantile_id))
-        call check(nf90_inq_dimid(ncid, column_dim_name, column))
+        call check(nf90_inq_dimid(ncid, column_dim_name, column_id))
         call check(nf90_inquire_dimension(ncid, quantile_id, &
                 quantile_dim_name, quantile_dim))
         call check(nf90_inquire_dimension(ncid, column_id, &
                 column_dim_name, column_dim))
         allocate(scale_values(quantile_dim, column_dim + 1))
-        call check(nf90_inquire_varid(ncid, ref_var_name, ref_var_id))
-        call check(nf90_get_var(ncid, ref_var_id, scale_values(:, 1)))
-        call check(nf90_inquire_varid(ncid, quant_var_name, quant_var_id))
-        call check(nf90_get_var(ncid, quant_var_id, scale_values(:, 2:column_dim + 1)))
+        allocate(temp_scale_values(column_dim + 1, quantile_dim))
+        call check(nf90_inq_varid(ncid, ref_var_name, ref_var_id))
+        print*, "load ref var"
+        call check(nf90_get_var(ncid, ref_var_id, temp_scale_values(1, :)))
+        call check(nf90_inq_varid(ncid, quant_var_name, quant_var_id))
+        print*, "load quant var"
+        call check(nf90_get_var(ncid, quant_var_id, temp_scale_values(2:column_dim + 1, :)))
+        scale_values = transpose(temp_scale_values)
         call check(nf90_close(ncid))
     end subroutine load_quantile_scale_values
 
@@ -295,7 +299,7 @@ contains
         real(kind = 8), dimension(:, :), intent(in) :: x_inputs
         real(kind = 8), dimension(:, :), intent(in) :: scale_values
         real(kind = 8), dimension(size(x_inputs, 1), size(x_inputs, 2)), intent(out) :: x_transformed
-        integer :: j, x_size
+        integer :: j, x_size, scale_size
         x_size = size(x_inputs, 1)
         scale_size = size(scale_values, 1)
         do j = 1, size(x_inputs, 2)
@@ -308,7 +312,7 @@ contains
         real(kind = 8), dimension(:, :), intent(in) :: x_inputs
         real(kind = 8), dimension(:, :), intent(in) :: scale_values
         real(kind = 8), dimension(size(x_inputs, 1), size(x_inputs, 2)), intent(out) :: x_transformed
-        integer :: j, x_size
+        integer :: j, x_size, scale_size
         x_size = size(x_inputs, 1)
         scale_size = size(scale_values, 1)
         do j = 1, size(x_inputs, 2)

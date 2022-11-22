@@ -389,7 +389,7 @@ def open_data_file(filename):
         fobj = fs.open(filename)
         ds = pd.read_parquet(fobj).set_index('Index')
     elif file_format == "parquet":
-        ds = pd.read_parquet(filename, index_col="Index")
+        ds = pd.read_parquet(filename)
     else:
         ds = pd.read_csv(filename, index_col="Index")
     return ds
@@ -446,7 +446,7 @@ def mass_conservation_filter(data, qc_thresh=1e-6):
     """
     if "mass_diff" not in data.columns:
         mass_columns(data)
-    mass_filter = ((data["Q_mass_diff"] == 0) &
+    mass_filter = ((data["mass_diff"] == 0) &
                    (data["NC_TAU_out_v2"] > 0) &
                    (data["NR_TAU_out_v2"] > 0) &
                    (data["QC_TAU_out_v2"] > 0) &

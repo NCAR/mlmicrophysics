@@ -5,8 +5,6 @@ F_INC="-I$NCAR_ROOT_INTEL/include -I$NCAR_INC_NETCDF -I$NCAR_INC_MKL"
 F_LIB="-L$NCAR_ROOT_INTEL/lib -L$NCAR_LDFLAGS_NETCDF -L$NCAR_LDFLAGS_MKL -L$NCAR_LDFLAGS_MKLAUX"
 all_paths="$F_INC $F_LIB $NCAR_LIBS_NETCDF -mkl"
 rm *.mod *.o test_emulator
-echo $FC $DEBUG_FLAGS -c module_neural_net.f90 tau_neural_net_batch.f90 $all_paths
-$FC $DEBUG_FLAGS -c module_neural_net.f90 tau_neural_net_batch.f90 $all_paths
-$FC $DEBUG_FLAGS -c neuralnet.f90 tau_neural_net.f90 $all_paths
-$FC $DEBUG_FLAGS test_emulator.f90 tau_neural_net_batch.o module_neural_net.o -o test_emulator $all_paths
-$FC $DEBUG_FLAGS test_emulator_old.f90 tau_neural_net.o neuralnet.o -o test_emulator_old $all_paths
+echo $FC $DEBUG_FLAGS -c module_neural_net.f90 tau_neural_net_quantile.f90 $all_paths
+$FC $DEBUG_FLAGS -c module_neural_net.f90 tau_neural_net_quantile.f90 $all_paths
+$FC $DEBUG_FLAGS test_quantile_emulator.f90 tau_neural_net_quantile.o module_neural_net.o -o test_quantile_emulator $all_paths

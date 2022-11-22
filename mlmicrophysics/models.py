@@ -172,7 +172,7 @@ class DenseNeuralNetwork(object):
             y_prob = self.model.predict(x, batch_size=batch_size)
             y_out = self.y_labels[np.argmax(y_prob, axis=1)].ravel()
         else:
-            y_out = self.model.predict(x, batch_size=batch_size).ravel()
+            y_out = self.model.predict(x, batch_size=batch_size)
         return y_out
 
     def predict_proba(self, x, batch_size=None):

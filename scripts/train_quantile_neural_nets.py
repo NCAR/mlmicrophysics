@@ -40,7 +40,9 @@ def main():
     meta_data = {}
     input_quant_data = {}
     output_quant_data = {}
+    print("Loading data")
     for subset in subsets:
+        print(subset)
         input_data[subset], output_data[subset], meta_data[subset] = assemble_data(files[subset],
                                                                                    input_cols,
                                                                                    output_cols,
@@ -52,7 +54,7 @@ def main():
         else:
             input_quant_data[subset] = input_scaler.transform(input_data[subset])
             output_quant_data[subset] = output_scaler.transform(output_data[subset])
-    if "scratch_path" in config["keys"]:
+    if "scratch_path" in config.keys():
         for subset in subsets:
             input_quant_data[subset].to_parquet(join(scratch_path, f"mp_quant_input_{subset}.parquet"))
             output_quant_data[subset].to_parquet(join(scratch_path, f"mp_quant_output_{subset}.parquet"))
@@ -64,6 +66,7 @@ def main():
         pickle.dump(input_scaler, in_quant_pickle)
     with open(join(out_path, "output_quantile_transform.pkl"), "wb") as out_quant_pickle:
         pickle.dump(output_scaler, out_quant_pickle)
+    print("Training")
     emulator_nn = DenseNeuralNetwork(**config["model"])
     emulator_nn.fit(input_quant_data["train"], output_quant_data["train"],
                     xv=input_quant_data["val"], yv=output_quant_data["val"])
@@ -76,3 +79,6 @@ def main():
         r2_test_scores[o] = r2_score(np.log10(output_data["test"][output_col].values),
                                      np.log10(test_preds[:, o]))
         print(output_col, r2_test_scores[o])
+
+if __name__ == "__main__":
+    main()
