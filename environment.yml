@@ -2,7 +2,7 @@ name: mlmicro
 channels:
   - conda-forge
 dependencies:
-  - python=3.8
+  - python=3.10
   - numpy
   - scipy
   - matplotlib
@@ -19,10 +19,12 @@ dependencies:
   - cartopy
   - pip
   - s3fs
-  - pyarrow
   - flake8
   - tqdm
+  - optuna
   - pip:
-    - tensorflow==2.4
-    - tensorflow-probability==0.12
+    - pyarrow
+    - tensorflow
+    - tensorflow-probability
+    - git+https://github.com/NCAR/echo-opt
 

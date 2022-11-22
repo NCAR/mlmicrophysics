@@ -454,6 +454,7 @@ def mass_conservation_filter(data, qc_thresh=1e-6):
                    (data["QC_TAU_in_v2"] >= qc_thresh))
     return data.loc[mass_filter].reset_index()
 
+
 def output_quantile_curves(quantile_transformer, col_names, quantile_file):
     """
     Convert quantile transformer attributes to xarray Dataset and save to netCDF for Fortran usage.
