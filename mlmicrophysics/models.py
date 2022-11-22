@@ -27,8 +27,6 @@ class DenseNeuralNetwork(object):
     Attributes:
         hidden_layers: Number of hidden layers
         hidden_neurons: Number of neurons in each hidden layer
-        inputs: Number of input values
-        outputs: Number of output values
         activation: Type of activation function
         output_activation: Activation function applied to the output layer
         optimizer: Name of optimizer or optimizer object.

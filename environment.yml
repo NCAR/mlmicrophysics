@@ -21,6 +21,7 @@ dependencies:
   - s3fs
   - pyarrow
   - flake8
+  - tqdm
   - pip:
     - tensorflow==2.4
     - tensorflow-probability==0.12
