@@ -1,7 +1,7 @@
-log:
-  save_path: "/glade/p/cisl/aiml/dgagne/micro/optuna/quantile/log.txt"
+log: True
+save_path: "/glade/p/cisl/aiml/dgagne/micro/optuna/quantile/log.txt"
 
-slurm:
+pbs:
   jobs: 20
   bash: ["source ~/.bashrc", "conda activate mlmicro"]
   batch:
@@ -14,10 +14,11 @@ slurm:
     e: "echo_trial.err"
 
 optuna:
-  name: "micro_quantile.db"
-  reload: 0
+  study_name: "micro-quantile"
+  storage: "micro_quantile.db"
+  storage_type: "sqlite"
   objective: "/glade/u/home/dgagne/mlmicrophysics/mlmicrophysics/objective.py"
-  direction: "minimize"
+  direction: "maximize"
   metric: "val_loss"
   n_trials: 900
   gpu: 0
@@ -42,5 +43,5 @@ optuna:
       type: "loguniform"
       settings:
         name: "lr"
-        low: 1e-6
-        high: 1e-2
+        low: 0.00001
+        high: 0.01

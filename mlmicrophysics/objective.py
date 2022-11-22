@@ -1,6 +1,6 @@
 from echo.src.base_objective import BaseObjective
 import numpy as np
-from models import DenseNeuralNetwork
+from mlmicrophysics.models import DenseNeuralNetwork
 import pandas as pd
 from os.path import join
 import pickle

@@ -2,6 +2,7 @@ from mlmicrophysics.models import DenseNeuralNetwork
 from mlmicrophysics.data import subset_data_files_by_date, assemble_data, output_quantile_curves
 from sklearn.preprocessing import QuantileTransformer
 from sklearn.metrics import r2_score
+import pandas as pd
 import numpy as np
 import os
 import argparse
@@ -49,12 +50,14 @@ def main():
                                                                                    subsample=subsample,
                                                                                    qc_thresh=qc_thresh)
         if subset == "train":
-            input_quant_data[subset] = input_scaler.fit_transform(input_data[subset])
-            output_quant_data[subset] = output_scaler.fit_transform(output_data[subset])
+            input_quant_data[subset] = pd.DataFrame(input_scaler.fit_transform(input_data[subset]), columns=input_cols)
+            output_quant_data[subset] = pd.DataFrame(output_scaler.fit_transform(output_data[subset]), columns=output_cols)
         else:
-            input_quant_data[subset] = input_scaler.transform(input_data[subset])
-            output_quant_data[subset] = output_scaler.transform(output_data[subset])
-    if "scratch_path" in config.keys():
+            input_quant_data[subset] = pd.DataFrame(input_scaler.transform(input_data[subset]), columns=input_cols)
+            output_quant_data[subset] = pd.DataFrame(output_scaler.transform(output_data[subset]), columns=output_cols)
+    if "scratch_path" in config["data"].keys():
+        if not exists(config["data"]["scratch_path"]):
+            os.makedirs(config["data"]["scratch_path"])
         for subset in subsets:
             input_quant_data[subset].to_parquet(join(scratch_path, f"mp_quant_input_{subset}.parquet"))
             output_quant_data[subset].to_parquet(join(scratch_path, f"mp_quant_output_{subset}.parquet"))
