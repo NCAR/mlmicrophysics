@@ -20,6 +20,7 @@ metrics_dict = {"accuracy": accuracy_score,
                  "hellinger": hellinger_distance,
                  "mse": mean_squared_error}
 
+
 class DenseNeuralNetwork(object):
     """
     A Dense Neural Network Model that can support arbitrary numbers of hidden layers.
@@ -27,11 +28,10 @@ class DenseNeuralNetwork(object):
     Attributes:
         hidden_layers: Number of hidden layers
         hidden_neurons: Number of neurons in each hidden layer
-        inputs: Number of input values
-        outputs: Number of output values
         activation: Type of activation function
         output_activation: Activation function applied to the output layer
         optimizer: Name of optimizer or optimizer object.
+        lr: Learning rate
         loss: Name of loss function or loss object
         use_noise: Whether or not additive Gaussian noise layers are included in the network
         noise_sd: The standard deviation of the Gaussian noise layers
@@ -42,7 +42,7 @@ class DenseNeuralNetwork(object):
         verbose: Level of detail to provide during training
         model: Keras Model object
     """
-    def __init__(self, hidden_layers=1, hidden_neurons=4, activation="relu", leaky_alpha=0.1,
+    def __init__(self, hidden_layers=1, hidden_neurons=32, activation="relu", leaky_alpha=0.1,
                  output_activation="linear", optimizer="adam", loss="mse", use_noise=False, noise_sd=0.01,
                  lr=0.001, use_dropout=False, dropout_alpha=0.1, batch_size=128, epochs=2,
                  l2_weight=0.01, sgd_momentum=0.9, adam_beta_1=0.9, adam_beta_2=0.999, decay=0, verbose=0,
@@ -105,9 +105,9 @@ class DenseNeuralNetwork(object):
                          name=f"dense_{self.hidden_layers:02d}")(nn_model)
         self.model = Model(nn_input, nn_model)
         if self.optimizer == "adam":
-            self.optimizer_obj = Adam(lr=self.lr, beta_1=self.adam_beta_1, beta_2=self.adam_beta_2, decay=self.decay)
+            self.optimizer_obj = Adam(learning_rate=self.lr, beta_1=self.adam_beta_1, beta_2=self.adam_beta_2)
         elif self.optimizer == "sgd":
-            self.optimizer_obj = SGD(lr=self.lr, momentum=self.sgd_momentum, decay=self.decay)
+            self.optimizer_obj = SGD(learning_rate=self.lr, momentum=self.sgd_momentum)
         self.model.compile(optimizer=self.optimizer_obj, loss=self.loss, metrics=self.metrics)
 
     def fit(self, x, y, xv=None, yv=None, **kwargs):
@@ -172,7 +172,7 @@ class DenseNeuralNetwork(object):
             y_prob = self.model.predict(x, batch_size=batch_size)
             y_out = self.y_labels[np.argmax(y_prob, axis=1)].ravel()
         else:
-            y_out = self.model.predict(x, batch_size=batch_size).ravel()
+            y_out = self.model.predict(x, batch_size=batch_size)
         return y_out
 
     def predict_proba(self, x, batch_size=None):

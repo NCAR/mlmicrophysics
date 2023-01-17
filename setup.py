@@ -9,7 +9,7 @@ with open("README.md", "r") as fh:
 
 if __name__ == "__main__":
     setup(name="mlmicrophysics",
-          version="0.1.2",
+          version="0.2",
           description="Machine learning emulator testbed for microphysics.",
           long_description=long_description,
           long_description_content_type="text/markdown",

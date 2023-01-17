@@ -1,0 +1,18 @@
+model_path: "/glade/p/cisl/aiml/dgagne/TAU_run6_lim10ppm/"
+model_file_start: "cam600_TAU_bin6_lim10ppm.cam.h1"
+model_file_end: "nc"
+time_var: "time"
+time_split_interval: 1
+staggered_variables: ["RHO_CLUBB"]
+out_variables: ["P0", "PS", "depth", "row", "col", "hyam", "hybm", "pressure", "temperature", "RHO_CLUBB_lev",
+                "RHO_CLUBB_top", "RHO_CLUBB_bottom",
+                "lamc", "lamr", "lcldm", "n0r", "pgam", "precip_frac",
+                "QC_TAU_in_v2", "NC_TAU_in_v2", "QR_TAU_in_v2", "NR_TAU_in_v2",
+                "QC_TAU_out_v2", "NC_TAU_out_v2", "QR_TAU_out_v2", "NR_TAU_out_v2",
+                "qctend_TAU_v2", "nctend_TAU_v2", "qrtend_TAU_v2", "nrtend_TAU_v2",
+                "qctend_MG2_v2", "nctend_MG2_v2", "qrtend_MG2_v2", "nrtend_MG2_v2"]
+subset_variable: ["QC_TAU_in_v2"]
+subset_threshold: [1.0e-38]
+out_path: "/glade/p/cisl/aiml/dgagne/cam_mp_files_run6_lim10ppm_parquet/"
+out_start: "cam_mp_data_run6_lim10ppm"
+out_format: "parquet"

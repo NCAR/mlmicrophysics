@@ -1,0 +1,28 @@
+data:
+  data_path: "/glade/p/cisl/aiml/dgagne/cam_mp_files_run6_lim10ppm_parquet/"
+  scratch_path: "/glade/scratch/dgagne/cam_mp_run6_quantile_nn_small/"
+  out_path: "/glade/work/dgagne/cam_mp_run6_quantile_nn_small/"
+  input_cols: ["QC_TAU_in_v2", "QR_TAU_in_v2", "NC_TAU_in_v2", "NR_TAU_in_v2", 'RHO_CLUBB_lev', "precip_frac", "lcldm"]
+  output_cols: ["QR_TAU_out_v2", "NC_TAU_out_v2", "NR_TAU_out_v2"]
+  qc_thresh: 1e-6
+  n_quantiles: 100
+  subsample: 0.1
+  random_seed: 215689
+  subset_data:
+    train_date_start: 0
+    train_date_end: 2000
+    test_date_start: 7001
+    test_date_end: 8000
+    validation_frequency: 3
+
+model:
+  hidden_layers: 3
+  hidden_neurons: 500
+  activation: "relu"
+  output_activation: "sigmoid"
+  loss: "mse"
+  lr: 0.0001
+  batch_size: 2048
+  epochs: 100
+  verbose: 2
+

@@ -6,6 +6,7 @@ from glob import glob
 from os.path import join, exists
 from sklearn.preprocessing import StandardScaler, RobustScaler, MaxAbsScaler, MinMaxScaler
 from operator import lt, le, eq, ne, ge, gt
+from tqdm import tqdm
 
 scalers = {"MinMaxScaler": MinMaxScaler,
            "MaxAbsScaler": MaxAbsScaler,
@@ -38,7 +39,6 @@ def inverse_neg_log10_transform(x):
 transforms = {"log10_transform": log10_transform,
               "neg_log10_transform": neg_log10_transform,
               "zero_transform": zero_transform}
-
 
 inverse_transforms = {"log10_transform": inverse_log10_transform,
                       "neg_log10_transform": inverse_neg_log10_transform,
@@ -82,7 +82,6 @@ def get_cam_output_times(path, time_var="time", file_start="TAU_run1.cam.h1", fi
     return pd.concat(file_time_list, ignore_index=True)
 
 
-
 def unstagger_vertical(dataset, variable, vertical_dim="lev"):
     """
     Interpolate a 4D variable on a staggered vertical grid to an unstaggered vertical grid. Will not execute
@@ -102,7 +101,6 @@ def unstagger_vertical(dataset, variable, vertical_dim="lev"):
                                         dims=("time", vertical_dim, "lat", "lon"),
                                         name=variable + "_" + vertical_dim)
     return unstaggered_var_data
-
 
 
 def split_staggered_variable(dataset, variable, vertical_dim="lev"):
@@ -166,7 +164,8 @@ def calc_pressure_field(dataset, pressure_var_name="pressure"):
     Returns:
 
     """
-    pressure = xr.DataArray((dataset["hyam"] * dataset["P0"] + dataset["hybm"] * dataset["PS"]).transpose("time", "lev", "lat", "lon"))
+    pressure = xr.DataArray(
+        (dataset["hyam"] * dataset["P0"] + dataset["hybm"] * dataset["PS"]).transpose("time", "lev", "lat", "lon"))
     pressure.name = pressure_var_name
     pressure.attrs["units"] = "Pa"
     pressure.attrs["long_name"] = "atmospheric pressure"
@@ -237,10 +236,11 @@ def load_csv_data(csv_path, index_col="Index"):
     all_data = []
     for csv_file in csv_files:
         all_data.append(pd.read_csv(csv_file, index_col=index_col))
-    return pd.concat(all_data, axis=0)
+    return pd.concat(all_data, axis=0, ignore_index=True)
 
 
 def subset_data_files_by_date(data_path,
+                              file_format="parquet",
                               train_date_start=0, train_date_end=8000,
                               test_date_start=9000,
                               test_date_end=18000, validation_frequency=3):
@@ -249,9 +249,10 @@ def subset_data_files_by_date(data_path,
     This way the full dataset does not have to be loaded and then broken into pieces.
 
     Args:
-        data_path:
-        train_date_start:
-        train_date_end:
+        data_path: Path to processsed data files
+        file_format: parquet or csv
+        train_date_start: Starting forecast hour for training period
+        train_date_end: Ending forecast hour for training period
         test_date_start:
         test_date_end:
         validation_frequency:
@@ -265,17 +266,15 @@ def subset_data_files_by_date(data_path,
         raise ValueError("test_date_start should not be greater than test_date_end")
     if train_date_end > test_date_start:
         raise ValueError("train and test date periods overlap.")
-    
+
     if data_path == "ncar-aiml-data-commons/microphysics":
         fs = s3fs.S3FileSystem(anon=True)
         csv_files = pd.Series(sorted(fs.ls("ncar-aiml-data-commons/microphysics")))
-        data_end = "*.parquet"
+        file_format = ".parquet"
     else:
-        data_end = "*.csv"
-        csv_files = pd.Series(sorted(glob(join(data_path, "*" + data_end))))
-    
-    file_times = csv_files.str.split("/").str[-1].str.split("_").str[-1].str.strip(data_end).astype(int).values
-    print("File times:\n",file_times)
+        csv_files = pd.Series(sorted(glob(join(data_path, "*." + file_format))))
+    file_times = csv_files.str.split("/").str[-1].str.split("_").str[-1].str.strip("." + file_format).astype(int).values
+    print("File times:\n", file_times)
     train_val_ind = np.where((file_times >= train_date_start) & (file_times <= train_date_end))[0]
     test_ind = np.where((file_times >= test_date_start) & (file_times <= test_date_end))[0]
     val_ind = train_val_ind[::validation_frequency]
@@ -364,7 +363,7 @@ def categorize_output_values(output_values, output_transforms, output_scalers=No
         labels[class_indices] = label
         if comparison[2] != "None":
             transformed_outputs[class_indices] = transforms[comparison[2]](output_values[class_indices],
-                                                                       eps=float(comparison[1]))
+                                                                           eps=float(comparison[1]))
         else:
             transformed_outputs[class_indices] = output_values[class_indices]
             # If the transform is 'None', then don't transform, copy exactly from the original data
@@ -378,20 +377,101 @@ def categorize_output_values(output_values, output_transforms, output_scalers=No
                     transformed_outputs[class_indices].reshape(-1, 1)).ravel()
         else:
             output_scalers[label] = None
-            scaled_outputs[class_indices]  = transformed_outputs[class_indices]
+            scaled_outputs[class_indices] = transformed_outputs[class_indices]
             # If the scaler is None, copy exactly from Transform data, should not be 0
     return labels, transformed_outputs, scaled_outputs, output_scalers
 
 
 def open_data_file(filename):
+    file_format = filename.split(".")[-1]
     if "ncar-aiml-data-commons/microphysics" in filename:
         fs = s3fs.S3FileSystem(anon=True)
         fobj = fs.open(filename)
         ds = pd.read_parquet(fobj).set_index('Index')
-        return ds
+    elif file_format == "parquet":
+        ds = pd.read_parquet(filename)
     else:
         ds = pd.read_csv(filename, index_col="Index")
-        return ds
+    return ds
+
+
+def assemble_data(files, input_cols, output_cols, subsample=1, qc_thresh=1e-6,
+                  meta_cols=("lat", "lon", "lev", "depth", "row", "col", "pressure", "temperature",
+                             "time", "qrtend_MG2_v2", "nrtend_MG2_v2", "nctend_MG2_v2")
+                  ):
+    all_input_data = []
+    all_output_data = []
+    all_meta_data = []
+    for f, filename in enumerate(tqdm(files)):
+        data = open_data_file(filename)
+        data = mass_conservation_filter(data, qc_thresh=qc_thresh)
+        if subsample < 1:
+            sample_index = int(np.round(data.shape[0] * subsample))
+            sample_indices = np.sort(np.random.permutation(np.arange(data.shape[0]))[:sample_index])
+        else:
+            sample_indices = np.arange(data.shape[0])
+
+        all_input_data.append(data.loc[sample_indices, input_cols])
+        all_output_data.append(data.loc[sample_indices, output_cols])
+        all_meta_data.append(data.loc[sample_indices, meta_cols])
+    combined_input_data = pd.concat(all_input_data, ignore_index=True)
+    combined_output_data = pd.concat(all_output_data, ignore_index=True)
+    combined_meta_data = pd.concat(all_meta_data, ignore_index=True)
+    print("Combined Data Size", combined_input_data.shape)
+    return combined_input_data, combined_output_data, combined_meta_data
+
+
+def mass_columns(data):
+    """
+    Add mass columns to data to check for conservation in place.
+
+    Returns:
+
+    """
+    data.loc[:, "mass_in"] = data[["QC_TAU_in_v2", "QR_TAU_in_v2"]].sum(axis=1)
+    data.loc[:, "mass_out"] = data[["QC_TAU_out_v2", "QR_TAU_out_v2"]].sum(axis=1)
+    data.loc[:, "mass_diff"] = data["mass_out"] - data["mass_in"]
+    return
+
+
+def mass_conservation_filter(data, qc_thresh=1e-6):
+    """
+    Filter data for examples that conserve mass and produce non-zero output for all variables.
+
+    Args:
+        data: input DataFrame
+        qc_thresh: minimum threshold for qc
+    Returns:
+        data frame with filtered data.
+    """
+    if "mass_diff" not in data.columns:
+        mass_columns(data)
+    mass_filter = ((data["mass_diff"] == 0) &
+                   (data["NC_TAU_out_v2"] > 0) &
+                   (data["NR_TAU_out_v2"] > 0) &
+                   (data["QC_TAU_out_v2"] > 0) &
+                   (data["QR_TAU_out_v2"] > 0) &
+                   (data["QC_TAU_in_v2"] >= qc_thresh))
+    return data.loc[mass_filter].reset_index()
+
+
+def output_quantile_curves(quantile_transformer, col_names, quantile_file):
+    """
+    Convert quantile transformer attributes to xarray Dataset and save to netCDF for Fortran usage.
+
+    Args:
+        quantile_transformer: sklearn.preprocessing.QuantileTransformer
+        col_names: Names of columns
+        quantile_file: Output netCDF file
+
+    Returns:
+
+    """
+    quantile_ds = xr.Dataset(data_vars={"quantiles": (["quantile", "column"], quantile_transformer.quantiles_)},
+                             coords={"reference": (["quantile"], quantile_transformer.references_),
+                                     "column": (["column"], col_names)})
+    quantile_ds.to_netcdf(quantile_file)
+    return quantile_ds
 
 
 def assemble_data_files(files, input_cols, output_cols, input_transforms, output_transforms,
@@ -418,8 +498,8 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
     all_input_data = []
     all_output_data = []
     all_meta_data = []
-    for i,filename in enumerate(files):
-        if i%10 == 0:
+    for i, filename in enumerate(files):
+        if i % 10 == 0:
             print(f"Finished loading {i}/{len(files)} files... opening file {filename}")
         data = open_data_file(filename)
         if subsample < 1:
@@ -440,7 +520,7 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
     del all_output_data[:]
     print("Transforming data")
     for var, transform_name in input_transforms.items():
-        if transform_name != "None":  #  handle the situation when you don't need to transform the data
+        if transform_name != "None":  # handle the situation when you don't need to transform the data
             combined_input_data.loc[:, var] = transforms[transform_name](combined_input_data[var])
     transformed_output_data = pd.DataFrame(0,
                                            columns=combined_output_data.columns,
@@ -459,13 +539,13 @@ def assemble_data_files(files, input_cols, output_cols, input_transforms, output
     for output_var in output_cols:
         if output_var not in output_scalers:
             output_scalers[output_var] = None
-        output_labels.loc[:, output_var],\
-            transformed_output_data.loc[:, output_var],\
-            scaled_output_data.loc[:, output_var],\
-            output_scalers[output_var] = categorize_output_values(combined_output_data.loc[:,
-                                                                  output_var].values.reshape(-1, 1),
-                                                                  output_transforms[output_var],
-                                                                  output_scalers=output_scalers[output_var])
+        output_labels.loc[:, output_var], \
+        transformed_output_data.loc[:, output_var], \
+        scaled_output_data.loc[:, output_var], \
+        output_scalers[output_var] = categorize_output_values(combined_output_data.loc[:,
+                                                              output_var].values.reshape(-1, 1),
+                                                              output_transforms[output_var],
+                                                              output_scalers=output_scalers[output_var])
     if train:
         scaled_input_data = pd.DataFrame(input_scaler.fit_transform(combined_input_data),
                                          columns=combined_input_data.columns)
@@ -503,8 +583,9 @@ def uniform_stratify_data(output_labels, scaled_output_data, category_size, outp
             else:
                 label_replace = False
             if label_val == 0:
-                sampling_indices[output_col][label_val] = np.random.choice(out_index[output_labels[output_col] == label_val],
-                                                                           size=category_size, replace=label_replace)
+                sampling_indices[output_col][label_val] = np.random.choice(
+                    out_index[output_labels[output_col] == label_val],
+                    size=category_size, replace=label_replace)
             else:
                 label_bins = output_bin_dict[output_col][label_val]
                 scaled_hist, _ = np.histogram(scaled_output_data[output_col][output_labels[output_col] == label_val],
@@ -544,6 +625,7 @@ def inverse_transform_data(data, transform_dict):
         if var in out_data.columns:
             out_data.loc[:, var] = inverse_transforms[transform_name](data[var])
     return out_data
+
 
 def repopulate_input_scaler(scale_file, scaler_type="StandardScaler"):
     """
@@ -589,5 +671,3 @@ def repopulate_output_scalers(scale_file, output_transforms):
                     setattr(output_scalers[out_var][out_label],
                             col, scale_data.loc[out_var, col])
     return output_scalers
-
-
