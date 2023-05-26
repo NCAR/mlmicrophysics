@@ -1,0 +1,16 @@
+model_path: "/glade/p/cisl/aiml/dgagne/TAU_ported_cam7_run_1/"
+model_file_start: "cam_ml_ported5_tau.cam.h1"
+model_file_end: "nc"
+time_var: "time"
+time_split_interval: 1
+staggered_variables: []
+out_variables: ["depth", "row", "col", "T", "RHO_CLUBB",
+                "CLOUD", "FREQR",
+                "QC_TAU_in", "NC_TAU_in", "QR_TAU_in", "NR_TAU_in",
+                "QC_TAU_out", "NC_TAU_out", "QR_TAU_out", "NR_TAU_out",
+                "qctend_TAU", "nctend_TAU", "qrtend_TAU", "nrtend_TAU",]
+subset_variable: ["QC_TAU_in"]
+subset_threshold: [1.0e-12]
+out_path: "/glade/p/cisl/aiml/dgagne/cam_mp_files_run7_parquet/"
+out_start: "cam_mp_data_run7"
+out_format: "parquet"

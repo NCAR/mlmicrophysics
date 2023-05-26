@@ -10,7 +10,7 @@ integer :: i, num_loops, t
 print *, "load emulators"
 call initialize_tau_emulators
 print *, "loaded emulators"
-qc = (/ 5e-6_r8, 1e-5_r8, 1e-3_r8, 2e-3_r8, 5.2e-4_r8 /)
+qc = (/ 5e-10_r8, 1e-5_r8, 1e-3_r8, 2e-3_r8, 5.2e-4_r8 /)
 qr = (/ 1e-10_r8, 1e-8_r8, 1e-2_r8, 1e-4_r8, 2e-3_r8 /)
 nc = (/ 10.0_r8, 100.0_r8, 500.0_r8, 50000.0_r8, 1.0_r8 /)
 nr = (/ 10.0_r8, 1.0_r8, 1000.0_r8, 1e6_r8, 10000.0_r8 /)
@@ -21,7 +21,7 @@ lcldm = (/ 0.5_r8, 0.4_r8, 0.3_r8, 0.6_r8, 0.25_r8 /)
 n0r = (/ 0.5e5_r8, 1.0e6_r8, 1.1e7_r8, 1.12e3_r8, 2.0e4_r8 /)
 pgam = (/ 10.0_r8, 50.0_r8, 25.0_r8, 19.0_r8, 100.0_r8 /)
 precip_frac = (/ 0.3_r8, 0.4_r8, 0.5_r8, 0.6_r8, 0.7_r8 /)
-qsmall = 1.0e-6_r8
+qsmall = 1.0e-18_r8
 num_loops = 1000
 print *, qc
 call cpu_time(t_start)
