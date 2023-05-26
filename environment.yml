@@ -26,5 +26,5 @@ dependencies:
     - pyarrow
     - tensorflow
     - tensorflow-probability
-    - git+https://github.com/NCAR/echo-opt
+    - echo-opt
 
