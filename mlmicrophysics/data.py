@@ -96,6 +96,7 @@ def unstagger_vertical(dataset, variable, vertical_dim="lev"):
         xarray DataArray containing the vertically interpolated data
     """
     var_data = dataset[variable]
+    print("variable is ", variable)
     unstaggered_var_data = xr.DataArray(0.5 * (var_data[:, :-1].values + var_data[:, 1:].values),
                                         coords=[var_data.time, dataset[vertical_dim], var_data.lat, var_data.lon],
                                         dims=("time", vertical_dim, "lat", "lon"),
@@ -389,6 +390,7 @@ def open_data_file(filename):
         fobj = fs.open(filename)
         ds = pd.read_parquet(fobj).set_index('Index')
     elif file_format == "parquet":
+        print(filename)
         ds = pd.read_parquet(filename)
     else:
         ds = pd.read_csv(filename, index_col="Index")
@@ -396,8 +398,8 @@ def open_data_file(filename):
 
 
 def assemble_data(files, input_cols, output_cols, subsample=1, qc_thresh=1e-6,
-                  meta_cols=("lat", "lon", "lev", "depth", "row", "col", "pressure", "temperature",
-                             "time", "qrtend_MG2_v2", "nrtend_MG2_v2", "nctend_MG2_v2")
+                  meta_cols=("lat", "lon", "lev", "depth", "row", "col", "T",
+                             "time", "qrtend_TAU", "nrtend_TAU", "nctend_TAU")
                   ):
     all_input_data = []
     all_output_data = []
@@ -428,8 +430,8 @@ def mass_columns(data):
     Returns:
 
     """
-    data.loc[:, "mass_in"] = data[["QC_TAU_in_v2", "QR_TAU_in_v2"]].sum(axis=1)
-    data.loc[:, "mass_out"] = data[["QC_TAU_out_v2", "QR_TAU_out_v2"]].sum(axis=1)
+    data.loc[:, "mass_in"] = data[["QC_TAU_in", "QR_TAU_in"]].sum(axis=1)
+    data.loc[:, "mass_out"] = data[["QC_TAU_out", "QR_TAU_out"]].sum(axis=1)
     data.loc[:, "mass_diff"] = data["mass_out"] - data["mass_in"]
     return
 
@@ -447,11 +449,11 @@ def mass_conservation_filter(data, qc_thresh=1e-6):
     if "mass_diff" not in data.columns:
         mass_columns(data)
     mass_filter = ((data["mass_diff"] == 0) &
-                   (data["NC_TAU_out_v2"] > 0) &
-                   (data["NR_TAU_out_v2"] > 0) &
-                   (data["QC_TAU_out_v2"] > 0) &
-                   (data["QR_TAU_out_v2"] > 0) &
-                   (data["QC_TAU_in_v2"] >= qc_thresh))
+                   (data["NC_TAU_out"] > 0) &
+                   (data["NR_TAU_out"] > 0) &
+                   (data["QC_TAU_out"] > 0) &
+                   (data["QR_TAU_out"] > 0) &
+                   (data["QC_TAU_in"] >= qc_thresh))
     return data.loc[mass_filter].reset_index()
 
 

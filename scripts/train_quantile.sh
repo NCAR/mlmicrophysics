@@ -1,15 +1,18 @@
 #!/bin/bash -l
 #PBS -N quantile_train
 #PBS -l walltime=04:00:00
-#PBS -l select=1:ncpus=4:ngpus=0:mem=128GB
-#PBS -A NAML0001
+#PBS -l select=1:ncpus=16:ngpus=1:mem=256GB
+#PBS -l gpu_type=v100
+#PBS -A P93300606 
 #PBS -q casper
 
 ### Merge output and error files
 #PBS -j oe
 #PBS -k eod
+module load conda
 conda activate mlmicro
 echo `which python`
 module load gnu
+export LD_PRELOAD=/glade/work/wchuang/conda-envs/mlmicro/lib/libstdc++.so
 cd ~/mlmicrophysics/scripts
-python -u train_quantile_neural_nets.py ../config/cesm_tau_run6_train_quantile_nn.yml
+python -u train_quantile_neural_nets.py ../config/training_tau_run7.yml &> training_tau_run7.log
