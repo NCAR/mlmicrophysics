@@ -1,14 +1,18 @@
+import tensorflow.keras.backend as K
+K.set_floatx('float64') # added by wkc to get float64
 from tensorflow.keras.layers import Input, Dense, Dropout, GaussianNoise, Activation, Concatenate, BatchNormalization, LeakyReLU
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.optimizers import Adam, SGD
-import tensorflow.keras.backend as K
+import tensorflow as tf
 from sklearn.metrics import confusion_matrix, accuracy_score, mean_absolute_error, mean_squared_error
 from mlmicrophysics.metrics import heidke_skill_score, peirce_skill_score, hellinger_distance, root_mean_squared_error, r2_corr
 import numpy as np
 import xarray as xr
 import pandas as pd
 
+policy = tf.keras.mixed_precision.Policy("float64") # added by wkc to get float64
+tf.keras.mixed_precision.set_global_policy(policy) # added by wkc to get float64
 
 metrics_dict = {"accuracy": accuracy_score,
                  "heidke": heidke_skill_score,
@@ -85,24 +89,27 @@ class DenseNeuralNetwork(object):
             inputs (int): Number of input predictor variables
             outputs (int): Number of output predictor variables
         """
-        nn_input = Input(shape=(inputs,), name="input")
+        
+        nn_input = Input(shape=(inputs,), name="input", dtype=tf.float64)
         nn_model = nn_input
         
         for h in range(self.hidden_layers):
             nn_model = Dense(self.hidden_neurons,
                              kernel_regularizer=l2(self.l2_weight),
-                             name=f"dense_{h:02d}")(nn_model)
+                             name=f"dense_{h:02d}",
+                             dtype=tf.float64)(nn_model)
             if self.activation == "leaky":
-                nn_model = LeakyReLU(self.leaky_alpha, name="hidden_activation_{0:02d}".format(h))(nn_model)
+                nn_model = LeakyReLU(self.leaky_alpha, name="hidden_activation_{0:02d}".format(h), dtype=tf.float64)(nn_model)
             else:
-                nn_model = Activation(self.activation, name="hidden_activation_{0:02d}".format(h))(nn_model)
+                nn_model = Activation(self.activation, name="hidden_activation_{0:02d}".format(h), dtype=tf.float64)(nn_model)
 
             if self.use_dropout:
-                nn_model = Dropout(self.dropout_alpha, name=f"dropout_h_{h:02d}")(nn_model)
+                nn_model = Dropout(self.dropout_alpha, name=f"dropout_h_{h:02d}", dtype=tf.float64)(nn_model)
             if self.use_noise:
-                nn_model = GaussianNoise(self.noise_sd, name=f"ganoise_h_{h:02d}")(nn_model)
+                nn_model = GaussianNoise(self.noise_sd, name=f"ganoise_h_{h:02d}", dtype=tf.float64)(nn_model)
         nn_model = Dense(outputs, activation=self.output_activation,
-                         name=f"dense_{self.hidden_layers:02d}")(nn_model)
+                         name=f"dense_{self.hidden_layers:02d}",
+                         dtype=tf.float64)(nn_model)
         self.model = Model(nn_input, nn_model)
         if self.optimizer == "adam":
             self.optimizer_obj = Adam(learning_rate=self.lr, beta_1=self.adam_beta_1, beta_2=self.adam_beta_2)
