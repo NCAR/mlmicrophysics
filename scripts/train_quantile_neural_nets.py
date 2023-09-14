@@ -1,3 +1,5 @@
+import tensorflow.keras.backend as K
+K.set_floatx('float64')
 from mlmicrophysics.models import DenseNeuralNetwork
 from mlmicrophysics.data import subset_data_files_by_date, assemble_data, output_quantile_curves
 from sklearn.preprocessing import QuantileTransformer
@@ -79,8 +81,8 @@ def main():
     test_preds = output_scaler.inverse_transform(test_quant_preds)
     r2_test_scores = np.zeros(len(output_cols))
     for o, output_col in enumerate(output_cols):
-        r2_test_scores[o] = r2_score(np.log10(output_data["test"][output_col].values),
-                                     np.log10(test_preds[:, o]))
+        r2_test_scores[o] = r2_score((output_quant_data["test"][output_col].values),
+                                     (test_quant_preds[:, o]))
         print(output_col, r2_test_scores[o])
 
 if __name__ == "__main__":
