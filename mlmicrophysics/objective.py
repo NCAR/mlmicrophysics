@@ -23,7 +23,7 @@ class Objective(BaseObjective):
             output_quant_data[subset] = pd.read_parquet(join(conf["data"]["scratch_path"],
                                                              f"mp_quant_output_{subset}.parquet"))
             output_data[subset] = pd.read_parquet(join(conf["data"]["scratch_path"], f"mp_output_{subset}.parquet"))
-        with open(join("/glade/work/wchuang/mlmicrophysics/tau_run_7/20230713_20230714", "output_quantile_transform.pkl"), "rb") as out_scaler_pickle:
+        with open(join(conf["data"]["out_path"], "output_quantile_transform.pkl"), "rb") as out_scaler_pickle:
             output_scaler = pickle.load(out_scaler_pickle)
         dnn = DenseNeuralNetwork(**conf["model"])
         dnn.fit(input_quant_data["train"], output_quant_data["train"], callbacks=get_callbacks(conf, path_extend = conf["data"]["out_path"]))

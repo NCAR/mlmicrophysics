@@ -96,7 +96,6 @@ def unstagger_vertical(dataset, variable, vertical_dim="lev"):
         xarray DataArray containing the vertically interpolated data
     """
     var_data = dataset[variable]
-    print("variable is ", variable)
     unstaggered_var_data = xr.DataArray(0.5 * (var_data[:, :-1].values + var_data[:, 1:].values),
                                         coords=[var_data.time, dataset[vertical_dim], var_data.lat, var_data.lon],
                                         dims=("time", vertical_dim, "lat", "lon"),
