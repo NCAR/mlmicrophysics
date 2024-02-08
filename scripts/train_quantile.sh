@@ -12,7 +12,6 @@
 module load conda
 conda activate mlmicro
 echo `which python`
-module load gnu
 export LD_PRELOAD=/glade/work/wchuang/conda-envs/mlmicro/lib/libstdc++.so
 cd ~/mlmicrophysics/scripts
-python -u train_quantile_neural_nets.py ../config/training_tau_run7.yml &> training_tau_run7.log
+python -u train_quantile_neural_nets.py ../config/training_tau_run10.yml &> training_tau_run10.log

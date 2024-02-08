@@ -1,5 +1,5 @@
 import tensorflow.keras.backend as K
-K.set_floatx('float64') # added by wkc to get float64
+K.set_floatx('float64') # for float64 capability
 from tensorflow.keras.layers import Input, Dense, Dropout, GaussianNoise, Activation, Concatenate, BatchNormalization, LeakyReLU
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
@@ -11,8 +11,8 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 
-policy = tf.keras.mixed_precision.Policy("float64") # added by wkc to get float64
-tf.keras.mixed_precision.set_global_policy(policy) # added by wkc to get float64
+policy = tf.keras.mixed_precision.Policy("float64") # for float64 capability
+tf.keras.mixed_precision.set_global_policy(policy) # for float64 capability
 
 metrics_dict = {"accuracy": accuracy_score,
                  "heidke": heidke_skill_score,
@@ -95,14 +95,10 @@ class DenseNeuralNetwork(object):
         
         for h in range(self.hidden_layers):
             nn_model = Dense(self.hidden_neurons,
-                             kernel_regularizer=l2(self.l2_weight),
-                             name=f"dense_{h:02d}",
-                             dtype=tf.float64)(nn_model)
-            if self.activation == "leaky":
-                nn_model = LeakyReLU(self.leaky_alpha, name="hidden_activation_{0:02d}".format(h), dtype=tf.float64)(nn_model)
-            else:
-                nn_model = Activation(self.activation, name="hidden_activation_{0:02d}".format(h), dtype=tf.float64)(nn_model)
-
+                    activation=self.activation,
+                    kernel_regularizer=l2(self.l2_weight),
+                    name=f"dense_{h:02d}",
+                    dtype=tf.float64)(nn_model)
             if self.use_dropout:
                 nn_model = Dropout(self.dropout_alpha, name=f"dropout_h_{h:02d}", dtype=tf.float64)(nn_model)
             if self.use_noise:

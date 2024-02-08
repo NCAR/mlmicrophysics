@@ -1,0 +1,16 @@
+model_path: "/glade/work/wchuang/mlmicrophysics/cesm_output/tauREV4/"
+model_file_start: "cam_ml_tauREV4_train.cam.h1"
+model_file_end: "nc"
+time_var: "time"
+time_split_interval: 1
+staggered_variables: []
+out_variables: ["depth", "row", "col", "T", "RHO_CLUBB", 
+                "CLOUD", "FREQR",
+                "QC_TAU_in", "NC_TAU_in", "QR_TAU_in", "NR_TAU_in", 
+                "QC_TAU_out", "NC_TAU_out", "QR_TAU_out", "NR_TAU_out",
+                "qctend_TAU", "nctend_TAU", "qrtend_TAU", "nrtend_TAU", "PGAM", "LAMC", "LAMR", "N0R"]
+subset_variable: ["QC_TAU_in"]
+subset_threshold: [1.0e-8]
+out_path: "/glade/derecho/scratch/wchuang/mlmicrophysics/cam_ml_tauREV4/20240110/"
+out_start: "cam_mp_data_tauREV4"
+out_format: "parquet"
