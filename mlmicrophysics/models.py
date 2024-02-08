@@ -95,14 +95,10 @@ class DenseNeuralNetwork(object):
         
         for h in range(self.hidden_layers):
             nn_model = Dense(self.hidden_neurons,
-                             kernel_regularizer=l2(self.l2_weight),
-                             name=f"dense_{h:02d}",
-                             dtype=tf.float64)(nn_model)
-            if self.activation == "leaky":
-                nn_model = LeakyReLU(self.leaky_alpha, name="hidden_activation_{0:02d}".format(h), dtype=tf.float64)(nn_model)
-            else:
-                nn_model = Activation(self.activation, name="hidden_activation_{0:02d}".format(h), dtype=tf.float64)(nn_model)
-
+                    activation=self.activation,
+                    kernel_regularizer=l2(self.l2_weight),
+                    name=f"dense_{h:02d}",
+                    dtype=tf.float64)(nn_model)
             if self.use_dropout:
                 nn_model = Dropout(self.dropout_alpha, name=f"dropout_h_{h:02d}", dtype=tf.float64)(nn_model)
             if self.use_noise:

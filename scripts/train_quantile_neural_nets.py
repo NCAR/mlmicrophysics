@@ -51,11 +51,27 @@ def main():
                                                                                    output_cols,
                                                                                    subsample=subsample,
                                                                                    qc_thresh=qc_thresh)
+        # Setup for changes to switch to incloud tendencies
+        input_data_df = pd.DataFrame(input_data[subset], columns=input_cols)
+        output_data_df = pd.DataFrame(output_data[subset], columns=output_cols)
+        columns_remove = ["CLOUD", "FREQR"]
+        new_input_cols = [x for x in input_cols if x not in columns_remove]
+
         if subset == "train":
-            input_quant_data[subset] = pd.DataFrame(input_scaler.fit_transform(input_data[subset]), columns=input_cols)
-            output_quant_data[subset] = pd.DataFrame(output_scaler.fit_transform(output_data[subset]), columns=output_cols)
+            # Filter training data
+            cloud_frac_filter = input_data_df["CLOUD"].values > 1.0e-4
+            qc_filter = input_data_df["QC_TAU_in"].values >= 1.0e-6
+            qctend_filter = output_data_df["qctend_TAU"].values < 0
+            train_filter = cloud_frac_filter & qc_filter & qctend_filter
+            input_data_df = input_data_df.loc[train_filter].drop(columns_remove, axis=1)
+            output_data_df = output_data_df.loc[train_filter]
+            # Transform data
+            input_quant_data[subset] = pd.DataFrame(input_scaler.fit_transform(input_data_df), columns=new_input_cols)
+            output_quant_data[subset] = pd.DataFrame(output_scaler.fit_transform(output_data_df), columns=output_cols)
         else:
-            input_quant_data[subset] = pd.DataFrame(input_scaler.transform(input_data[subset]), columns=input_cols)
+            # Filter validation data
+            input_data[subset] = input_data[subset].drop(columns_remove, axis=1)
+            input_quant_data[subset] = pd.DataFrame(input_scaler.transform(input_data[subset]), columns=new_input_cols)
             output_quant_data[subset] = pd.DataFrame(output_scaler.transform(output_data[subset]), columns=output_cols)
     if "scratch_path" in config["data"].keys():
         if not exists(config["data"]["scratch_path"]):
@@ -65,7 +81,7 @@ def main():
             output_quant_data[subset].to_parquet(join(scratch_path, f"mp_quant_output_{subset}.parquet"))
             output_data[subset].to_parquet(join(scratch_path, f"mp_output_{subset}.parquet"))
             meta_data[subset].to_parquet(join(scratch_path, f"mp_meta_{subset}.parquet"))
-    output_quantile_curves(input_scaler, input_cols, join(out_path, "input_quantile_scaler.nc"))
+    output_quantile_curves(input_scaler, new_input_cols, join(out_path, "input_quantile_scaler.nc"))
     output_quantile_curves(output_scaler, output_cols, join(out_path, "output_quantile_scaler.nc"))
     with open(join(out_path, "input_quantile_transform.pkl"), "wb") as in_quant_pickle:
         pickle.dump(input_scaler, in_quant_pickle)
