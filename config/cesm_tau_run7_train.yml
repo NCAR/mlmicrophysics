@@ -1,7 +1,7 @@
 data:
-  data_path: "/glade/p/cisl/aiml/dgagne/cam_mp_files_run6_lim10ppm_parquet/"
-  scratch_path: "/glade/scratch/dgagne/cam_mp_run6_quantile_nn/"
-  out_path: "/glade/work/dgagne/cam_mp_run6_quantile_nn/"
+  data_path: "/glade/p/cisl/aiml/dgagne/cam_mp_files_run7_parquet/"
+  scratch_path: "/glade/scratch/dgagne/cam_mp_run7_quantile_nn/"
+  out_path: "/glade/work/dgagne/cam_mp_run7_quantile_nn/"
   input_cols: ["QC_TAU_in", "QR_TAU_in", "NC_TAU_in", "NR_TAU_in"]
   output_cols: ["qctend_TAU", "qrtend_TAU", "nctend_TAU", "nrtend_TAU"]
   qc_thresh: 1e-12
@@ -10,9 +10,9 @@ data:
   random_seed: 215689
   subset_data:
     train_date_start: 0
-    train_date_end: 7000
-    test_date_start: 7001
-    test_date_end: 11000
+    train_date_end: 6000
+    test_date_start: 6001
+    test_date_end: 10000
     validation_frequency: 3
 
 model:

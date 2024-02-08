@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #PBS -N phys_proc
-#PBS -l walltime=08:00:00
-#PBS -l select=1:ncpus=36:ngpus=0:mem=600GB
+#PBS -l walltime=04:00:00
+#PBS -l select=1:ncpus=36:ngpus=0:mem=500GB
 #PBS -A P93300606 
 #PBS -q casper 
 

@@ -1,5 +1,5 @@
 import tensorflow.keras.backend as K
-K.set_floatx('float64') # added by wkc to get float64
+K.set_floatx('float64') # for float64 capability
 from tensorflow.keras.layers import Input, Dense, Dropout, GaussianNoise, Activation, Concatenate, BatchNormalization, LeakyReLU
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
@@ -11,8 +11,8 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 
-policy = tf.keras.mixed_precision.Policy("float64") # added by wkc to get float64
-tf.keras.mixed_precision.set_global_policy(policy) # added by wkc to get float64
+policy = tf.keras.mixed_precision.Policy("float64") # for float64 capability
+tf.keras.mixed_precision.set_global_policy(policy) # for float64 capability
 
 metrics_dict = {"accuracy": accuracy_score,
                  "heidke": heidke_skill_score,
