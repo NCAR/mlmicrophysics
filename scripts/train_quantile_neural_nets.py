@@ -35,6 +35,9 @@ def main():
 
     if not exists(out_path):
         os.makedirs(out_path)
+    # Save config file
+    with open(join(out_path, "training.yml"), 'w') as file:
+        yaml.dump(config, file)
     files = dict()
     files["train"], files["val"], files["test"] = subset_data_files_by_date(data_path, **config["data"]["subset_data"])
     subsets = ["train", "val", "test"]
