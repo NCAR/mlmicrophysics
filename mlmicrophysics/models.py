@@ -10,6 +10,7 @@ from mlmicrophysics.metrics import heidke_skill_score, peirce_skill_score, helli
 import numpy as np
 import xarray as xr
 import pandas as pd
+from mlmicrophysics.callbacks import get_callbacks
 
 policy = tf.keras.mixed_precision.Policy("float64") # for float64 capability
 tf.keras.mixed_precision.set_global_policy(policy) # for float64 capability
@@ -114,6 +115,7 @@ class DenseNeuralNetwork(object):
         self.model.compile(optimizer=self.optimizer_obj, loss=self.loss, metrics=self.metrics)
 
     def fit(self, x, y, xv=None, yv=None, **kwargs):
+        print("In fitting function")
         inputs = x.shape[1]
         if len(y.shape) == 1:
             outputs = 1
