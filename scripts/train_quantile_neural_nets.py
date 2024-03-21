@@ -48,6 +48,8 @@ def main():
     input_quant_data = {}
     output_quant_data = {}
     input_data_filtered = {}
+    input_data_df = {}
+    output_data_df = {}
     
     print("Loading data")
     for subset in subsets:
@@ -57,47 +59,52 @@ def main():
                                                                                    output_cols,
                                                                                    subsample=subsample,
                                                                                    qc_thresh=qc_thresh)
+        # Initialize the filtered dataframes
+        # Need to find a better way to create a dictionary of dataframes
+        # instead of initializing them with another dictionary of dataframes
+        input_data_filtered[subset] = input_data[subset]
+        input_data_df[subset] = input_data[subset]
+        output_data_df[subset] = output_data[subset]
         # Setup for changes to switch to incloud tendencies
-        input_data_df = pd.DataFrame(input_data[subset], columns=input_cols)
-        output_data_df = pd.DataFrame(output_data[subset], columns=output_cols)
+        input_data_df[subset] = pd.DataFrame(input_data[subset], columns=input_cols)
+        output_data_df[subset] = pd.DataFrame(output_data[subset], columns=output_cols)
         columns_remove = ["CLOUD", "FREQR"]
         new_input_cols = [x for x in input_cols if x not in columns_remove]
-        # Initialize the filtered dataframe
-        input_data_filtered[subset] = input_data[subset]
         if subset == "train":
             # Filter training data
-            cloud_frac_filter = input_data_df["CLOUD"].values > 1.0e-4
-            qc_filter = input_data_df["QC_TAU_in"].values >= 1.0e-6
+            cloud_frac_filter = input_data_df[subset]["CLOUD"].values > 1.0e-2
+            qc_filter = input_data_df[subset]["QC_TAU_in"].values >= 1.0e-6
             if "qctend_TAU" in output_cols:
-                qctend_filter = output_data_df["qctend_TAU"].values < 0
+                qctend_filter = output_data_df[subset]["qctend_TAU"].values < 0
                 train_filter = cloud_frac_filter & qc_filter & qctend_filter
             else:
                 train_filter = cloud_frac_filter & qc_filter
             # Keep filter step separate so we can write a parquet with CLOUD and FREQR variables
-            input_data_df = input_data_df.loc[train_filter]
+            input_data_df[subset] = input_data_df[subset].loc[train_filter]
             # Remove the CLOUD and FREQR columns for training
-            input_data_filtered[subset] = input_data_df.drop(columns_remove, axis=1)
-            output_data_df = output_data_df.loc[train_filter]
+            input_data_filtered[subset] = input_data_df[subset].drop(columns_remove, axis=1)
+            output_data_df[subset] = output_data_df[subset].loc[train_filter]
             # Transform data
             input_quant_data[subset] = pd.DataFrame(input_scaler.fit_transform(input_data_filtered[subset]), columns=new_input_cols)
-            output_quant_data[subset] = pd.DataFrame(output_scaler.fit_transform(output_data_df), columns=output_cols)
+            output_quant_data[subset] = pd.DataFrame(output_scaler.fit_transform(output_data_df[subset]), columns=output_cols)
         else:
             # Filter validation data
             if "qctend_TAU" in output_cols:
                 qctend_filter = output_data_df["qctend_TAU"].values < 0
-                input_data_df = input_data_df.loc[qctend_filter]
-                output_data_df = output_data_df.loc[qctend_filter]
-            input_data_filtered[subset] = input_data_df.drop(columns_remove, axis=1)
+                input_data_df[subset] = input_data_df[subset].loc[qctend_filter]
+                output_data_df[subset] = output_data_df[subset].loc[qctend_filter]
+            input_data_filtered[subset] = input_data_df[subset].drop(columns_remove, axis=1)
             input_quant_data[subset] = pd.DataFrame(input_scaler.transform(input_data_filtered[subset]), columns=new_input_cols)
-            output_quant_data[subset] = pd.DataFrame(output_scaler.transform(output_data[subset]), columns=output_cols)
+            output_quant_data[subset] = pd.DataFrame(output_scaler.transform(output_data_df[subset]), columns=output_cols)
     if "scratch_path" in config["data"].keys():
         if not exists(config["data"]["scratch_path"]):
             os.makedirs(config["data"]["scratch_path"])
         for subset in subsets:
+            input_data_df[subset].to_parquet(join(scratch_path, f"mp_input_df_{subset}.parquet"))
             input_data_filtered[subset].to_parquet(join(scratch_path, f"mp_input_filtered_{subset}.parquet"))
             input_quant_data[subset].to_parquet(join(scratch_path, f"mp_quant_input_{subset}.parquet"))
             output_quant_data[subset].to_parquet(join(scratch_path, f"mp_quant_output_{subset}.parquet"))
-            output_data[subset].to_parquet(join(scratch_path, f"mp_output_{subset}.parquet"))
+            output_data_df[subset].to_parquet(join(scratch_path, f"mp_output_{subset}.parquet"))
             meta_data[subset].to_parquet(join(scratch_path, f"mp_meta_{subset}.parquet"))
     output_quantile_curves(input_scaler, new_input_cols, join(out_path, "input_quantile_scaler.nc"))
     output_quantile_curves(output_scaler, output_cols, join(out_path, "output_quantile_scaler.nc"))
