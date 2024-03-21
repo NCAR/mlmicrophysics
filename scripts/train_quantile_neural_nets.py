@@ -2,6 +2,7 @@ import tensorflow.keras.backend as K
 K.set_floatx('float64')
 from mlmicrophysics.models import DenseNeuralNetwork
 from mlmicrophysics.data import subset_data_files_by_date, assemble_data, output_quantile_curves
+from mlmicrophysics.callbacks import get_callbacks
 from sklearn.preprocessing import QuantileTransformer
 from sklearn.metrics import r2_score
 import pandas as pd
@@ -46,6 +47,8 @@ def main():
     meta_data = {}
     input_quant_data = {}
     output_quant_data = {}
+    input_data_filtered = {}
+    
     print("Loading data")
     for subset in subsets:
         print(subset)
@@ -59,27 +62,39 @@ def main():
         output_data_df = pd.DataFrame(output_data[subset], columns=output_cols)
         columns_remove = ["CLOUD", "FREQR"]
         new_input_cols = [x for x in input_cols if x not in columns_remove]
-
+        # Initialize the filtered dataframe
+        input_data_filtered[subset] = input_data[subset]
         if subset == "train":
             # Filter training data
             cloud_frac_filter = input_data_df["CLOUD"].values > 1.0e-4
             qc_filter = input_data_df["QC_TAU_in"].values >= 1.0e-6
-            qctend_filter = output_data_df["qctend_TAU"].values < 0
-            train_filter = cloud_frac_filter & qc_filter & qctend_filter
-            input_data_df = input_data_df.loc[train_filter].drop(columns_remove, axis=1)
+            if "qctend_TAU" in output_cols:
+                qctend_filter = output_data_df["qctend_TAU"].values < 0
+                train_filter = cloud_frac_filter & qc_filter & qctend_filter
+            else:
+                train_filter = cloud_frac_filter & qc_filter
+            # Keep filter step separate so we can write a parquet with CLOUD and FREQR variables
+            input_data_df = input_data_df.loc[train_filter]
+            # Remove the CLOUD and FREQR columns for training
+            input_data_filtered[subset] = input_data_df.drop(columns_remove, axis=1)
             output_data_df = output_data_df.loc[train_filter]
             # Transform data
-            input_quant_data[subset] = pd.DataFrame(input_scaler.fit_transform(input_data_df), columns=new_input_cols)
+            input_quant_data[subset] = pd.DataFrame(input_scaler.fit_transform(input_data_filtered[subset]), columns=new_input_cols)
             output_quant_data[subset] = pd.DataFrame(output_scaler.fit_transform(output_data_df), columns=output_cols)
         else:
             # Filter validation data
-            input_data[subset] = input_data[subset].drop(columns_remove, axis=1)
-            input_quant_data[subset] = pd.DataFrame(input_scaler.transform(input_data[subset]), columns=new_input_cols)
+            if "qctend_TAU" in output_cols:
+                qctend_filter = output_data_df["qctend_TAU"].values < 0
+                input_data_df = input_data_df.loc[qctend_filter]
+                output_data_df = output_data_df.loc[qctend_filter]
+            input_data_filtered[subset] = input_data_df.drop(columns_remove, axis=1)
+            input_quant_data[subset] = pd.DataFrame(input_scaler.transform(input_data_filtered[subset]), columns=new_input_cols)
             output_quant_data[subset] = pd.DataFrame(output_scaler.transform(output_data[subset]), columns=output_cols)
     if "scratch_path" in config["data"].keys():
         if not exists(config["data"]["scratch_path"]):
             os.makedirs(config["data"]["scratch_path"])
         for subset in subsets:
+            input_data_filtered[subset].to_parquet(join(scratch_path, f"mp_input_filtered_{subset}.parquet"))
             input_quant_data[subset].to_parquet(join(scratch_path, f"mp_quant_input_{subset}.parquet"))
             output_quant_data[subset].to_parquet(join(scratch_path, f"mp_quant_output_{subset}.parquet"))
             output_data[subset].to_parquet(join(scratch_path, f"mp_output_{subset}.parquet"))
@@ -93,7 +108,8 @@ def main():
     print("Training")
     emulator_nn = DenseNeuralNetwork(**config["model"])
     emulator_nn.fit(input_quant_data["train"], output_quant_data["train"],
-                    xv=input_quant_data["val"], yv=output_quant_data["val"])
+                    xv=input_quant_data["val"], yv=output_quant_data["val"],
+                    callbacks=get_callbacks(config))
     emulator_nn.save_fortran_model(join(out_path, "quantile_neural_net_fortran.nc"))
     emulator_nn.model.save(join(out_path, "quantile_neural_net_keras.h5"))
     test_quant_preds = emulator_nn.predict(input_quant_data["test"], batch_size=40000)
