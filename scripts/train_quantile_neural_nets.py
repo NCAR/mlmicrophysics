@@ -48,8 +48,12 @@ def main():
     input_quant_data = {}
     output_quant_data = {}
     input_data_filtered = {}
+    output_data_filtered = {}
     input_data_df = {}
     output_data_df = {}
+    input_data_nn = {}
+    output_data_nn = {}
+    meta_filtered = {}
     
     print("Loading data")
     for subset in subsets:
@@ -69,44 +73,47 @@ def main():
         input_data_df[subset] = pd.DataFrame(input_data[subset], columns=input_cols)
         output_data_df[subset] = pd.DataFrame(output_data[subset], columns=output_cols)
         columns_remove = ["CLOUD", "FREQR"]
-        new_input_cols = [x for x in input_cols if x not in columns_remove]
-        if subset == "train":
-            # Filter training data
-            cloud_frac_filter = input_data_df[subset]["CLOUD"].values > 1.0e-2
-            qc_filter = input_data_df[subset]["QC_TAU_in"].values >= 1.0e-6
-            if "qctend_TAU" in output_cols:
-                qctend_filter = output_data_df[subset]["qctend_TAU"].values < 0
-                train_filter = cloud_frac_filter & qc_filter & qctend_filter
-            else:
-                train_filter = cloud_frac_filter & qc_filter
-            # Keep filter step separate so we can write a parquet with CLOUD and FREQR variables
-            input_data_df[subset] = input_data_df[subset].loc[train_filter]
-            # Remove the CLOUD and FREQR columns for training
-            input_data_filtered[subset] = input_data_df[subset].drop(columns_remove, axis=1)
-            output_data_df[subset] = output_data_df[subset].loc[train_filter]
-            # Transform data
-            input_quant_data[subset] = pd.DataFrame(input_scaler.fit_transform(input_data_filtered[subset]), columns=new_input_cols)
-            output_quant_data[subset] = pd.DataFrame(output_scaler.fit_transform(output_data_df[subset]), columns=output_cols)
+        input_cols_nn = [x for x in input_cols if x not in columns_remove]
+        # Filter all data
+        cloud_frac_filter = input_data_df[subset]["CLOUD"].values > 1.0e-2
+        qc_filter = input_data_df[subset]["QC_TAU_in"].values >= 1.0e-6
+        if "qctend_TAU" in output_cols:
+            qctend_filter = output_data_df[subset]["qctend_TAU"].values < 0
+            filter = cloud_frac_filter & qc_filter & qctend_filter
         else:
-            # Filter validation data
-            if "qctend_TAU" in output_cols:
-                qctend_filter = output_data_df["qctend_TAU"].values < 0
-                input_data_df[subset] = input_data_df[subset].loc[qctend_filter]
-                output_data_df[subset] = output_data_df[subset].loc[qctend_filter]
-            input_data_filtered[subset] = input_data_df[subset].drop(columns_remove, axis=1)
-            input_quant_data[subset] = pd.DataFrame(input_scaler.transform(input_data_filtered[subset]), columns=new_input_cols)
-            output_quant_data[subset] = pd.DataFrame(output_scaler.transform(output_data_df[subset]), columns=output_cols)
+            filter = cloud_frac_filter & qc_filter
+        # Keep filter step separate so we can write a parquet file that includes CLOUD and FREQR
+        input_data_filtered[subset] = input_data_df[subset].loc[filter]
+        output_data_filtered[subset] = output_data_df[subset].loc[filter]
+        meta_filtered[subset] = meta_data[subset].loc[filter]
+        # Remove the CLOUD and FREQR columns for training
+        input_data_nn[subset] = input_data_filtered[subset].drop(columns_remove, axis=1)
+        output_data_nn[subset] = output_data_filtered[subset]
+        if subset == "train":
+            input_quant_data[subset] = pd.DataFrame(input_scaler.fit_transform(input_data_nn[subset]), columns=input_cols_nn)
+            output_quant_data[subset] = pd.DataFrame(output_scaler.fit_transform(output_data_nn[subset]), columns=output_cols)
+        else:
+            input_quant_data[subset] = pd.DataFrame(input_scaler.transform(input_data_nn[subset]), columns=input_cols_nn)
+            output_quant_data[subset] = pd.DataFrame(output_scaler.transform(output_data_nn[subset]), columns=output_cols)
     if "scratch_path" in config["data"].keys():
         if not exists(config["data"]["scratch_path"]):
             os.makedirs(config["data"]["scratch_path"])
         for subset in subsets:
-            input_data_df[subset].to_parquet(join(scratch_path, f"mp_input_df_{subset}.parquet"))
+            # Save input post-filtering, but pre-removal of CLOUD and FREQR columns
             input_data_filtered[subset].to_parquet(join(scratch_path, f"mp_input_filtered_{subset}.parquet"))
+            # Save input data post-filtering and post-removal of CLOUD and FREQR
+            input_data_nn[subset].to_parquet(join(scratch_path, f"mp_input_nn_{subset}.parquet"))
+            # Save input data post-quantile transform
             input_quant_data[subset].to_parquet(join(scratch_path, f"mp_quant_input_{subset}.parquet"))
+            # Save output data pre-inverse transform (quantile transformed)
             output_quant_data[subset].to_parquet(join(scratch_path, f"mp_quant_output_{subset}.parquet"))
-            output_data_df[subset].to_parquet(join(scratch_path, f"mp_output_{subset}.parquet"))
+            # Save output data post-inverse transform
+            output_data_nn[subset].to_parquet(join(scratch_path, f"mp_output_{subset}.parquet"))
+            # Save original meta data
             meta_data[subset].to_parquet(join(scratch_path, f"mp_meta_{subset}.parquet"))
-    output_quantile_curves(input_scaler, new_input_cols, join(out_path, "input_quantile_scaler.nc"))
+            # Save filtered meta data
+            meta_filtered[subset].to_parquet(join(scratch_path, f"mp_meta_filtered_{subset}.parquet"))
+    output_quantile_curves(input_scaler, input_cols_nn, join(out_path, "input_quantile_scaler.nc"))
     output_quantile_curves(output_scaler, output_cols, join(out_path, "output_quantile_scaler.nc"))
     with open(join(out_path, "input_quantile_transform.pkl"), "wb") as in_quant_pickle:
         pickle.dump(input_scaler, in_quant_pickle)
