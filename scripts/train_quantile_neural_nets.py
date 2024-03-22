@@ -127,7 +127,9 @@ def main():
     emulator_nn.save_fortran_model(join(out_path, "quantile_neural_net_fortran.nc"))
     emulator_nn.model.save(join(out_path, "quantile_neural_net_keras.h5"))
     test_quant_preds = emulator_nn.predict(input_quant_data["test"], batch_size=40000)
+    test_quant_preds.to_parquet(join(scratch_path, f"mp_quant_output_predicted.parquet"))
     test_preds = output_scaler.inverse_transform(test_quant_preds)
+    test_preds.to_parquet(join(scratch_path, f"mp_output_predicted.parquet"))
     r2_test_scores = np.zeros(len(output_cols))
     for o, output_col in enumerate(output_cols):
         r2_test_scores[o] = r2_score((output_quant_data["test"][output_col].values),
