@@ -72,16 +72,18 @@ def main():
         # Setup for changes to switch to incloud tendencies
         input_data_df[subset] = pd.DataFrame(input_data[subset], columns=input_cols)
         output_data_df[subset] = pd.DataFrame(output_data[subset], columns=output_cols)
-        columns_remove = ["CLOUD", "FREQR"]
+        columns_remove = [] # ["CLOUD", "FREQR", "lev"]
         input_cols_nn = [x for x in input_cols if x not in columns_remove]
         # Filter all data
         cloud_frac_filter = input_data_df[subset]["CLOUD"].values > 1.0e-2
         qc_filter = input_data_df[subset]["QC_TAU_in"].values >= 1.0e-6
+            # Filter pressures above 100 mb (lower in the atmosphere)
+        lev_filter = input_data_df[subset]["lev"].values >= 100.0
         if "qctend_TAU" in output_cols:
             qctend_filter = output_data_df[subset]["qctend_TAU"].values < 0
-            filter = cloud_frac_filter & qc_filter & qctend_filter
+            filter = cloud_frac_filter & qc_filter & lev_filter & qctend_filter
         else:
-            filter = cloud_frac_filter & qc_filter
+            filter = cloud_frac_filter & qc_filter & lev_filter
         # Keep filter step separate so we can write a parquet file that includes CLOUD and FREQR
         input_data_filtered[subset] = input_data_df[subset].loc[filter]
         output_data_filtered[subset] = output_data_df[subset].loc[filter]
@@ -127,9 +129,9 @@ def main():
     emulator_nn.save_fortran_model(join(out_path, "quantile_neural_net_fortran.nc"))
     emulator_nn.model.save(join(out_path, "quantile_neural_net_keras.h5"))
     test_quant_preds = emulator_nn.predict(input_quant_data["test"], batch_size=40000)
-    test_quant_preds.to_parquet(join(scratch_path, f"mp_quant_output_predicted.parquet"))
+    # test_quant_preds.to_parquet(join(scratch_path, f"mp_quant_output_predicted.parquet"))
     test_preds = output_scaler.inverse_transform(test_quant_preds)
-    test_preds.to_parquet(join(scratch_path, f"mp_output_predicted.parquet"))
+    # test_preds.to_parquet(join(scratch_path, f"mp_output_predicted.parquet"))
     r2_test_scores = np.zeros(len(output_cols))
     for o, output_col in enumerate(output_cols):
         r2_test_scores[o] = r2_score((output_quant_data["test"][output_col].values),
