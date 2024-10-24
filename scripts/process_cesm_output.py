@@ -20,7 +20,7 @@ def main():
     if not exists(args.config):
         raise FileNotFoundError(args.config + " not found.")
     with open(args.config) as config_file:
-        config = yaml.load(config_file)
+        config = yaml.load(config_file, Loader=yaml.FullLoader)
     #time_files = get_cam_output_times(config["model_path"], time_var=config["time_var"],
     #                                  file_start=config["model_file_start"],
     #                                  file_end=config["model_file_end"])
@@ -71,15 +71,15 @@ def process_cesm_file_subset(filename, staggered_variables=None, time_var="time"
         model_ds[staggered_variable + "_lev"] = unstagger_vertical(model_ds, staggered_variable)
         model_ds.update(split_staggered_variable(model_ds, staggered_variable))
     model_ds.update(add_index_coords(model_ds))
-    model_ds["pressure"] = calc_pressure_field(model_ds)
-    model_ds["temperature"] = calc_temperature(model_ds)
-    for var in ["QC", "QR", "NC", "NR"]:
-        if var + "_TAU_in" in model_ds.variables.keys():
-            model_ds[var + "_TAU_out"] = (model_ds[var + "_TAU_in"] + model_ds[var.lower() + "tend_TAU"] * dt)
-            model_ds[var + "_MG2_out"] = (model_ds[var + "_TAU_in"] + model_ds[var.lower() + "tend_MG2"] * dt)
-        elif var + "_sd_in" in model_ds.variables.keys():
-            model_ds[var + "_sd_out"] = (model_ds[var + "_sd_in"] + model_ds[var.lower() + "tend_sd"] * dt)
-            model_ds[var + "_MG2_out"] = (model_ds[var + "_sd_in"] + model_ds[var.lower() + "tend_MG2"] * dt)
+    #model_ds["pressure"] = calc_pressure_field(model_ds)
+    #model_ds["temperature"] = calc_temperature(model_ds)
+    #for var in ["QC", "QR", "NC", "NR"]:
+    #    if var + "_TAU_in" in model_ds.variables.keys():
+    #        model_ds[var + "_TAU_out"] = (model_ds[var + "_TAU_in"] + model_ds[var.lower() + "tend_TAU"] * dt)
+            #model_ds[var + "_MG2_out"] = (model_ds[var + "_TAU_in"] + model_ds[var.lower() + "tend_MG2"] * dt)
+    #    elif var + "_sd_in" in model_ds.variables.keys():
+    #        model_ds[var + "_sd_out"] = (model_ds[var + "_sd_in"] + model_ds[var.lower() + "tend_sd"] * dt)
+            #model_ds[var + "_MG2_out"] = (model_ds[var + "_sd_in"] + model_ds[var.lower() + "tend_MG2"] * dt)
 
     times = model_ds[time_var]
     for time in times:
