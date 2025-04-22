@@ -1,11 +1,11 @@
 data:
   data_path: "/glade/derecho/scratch/wchuang/mlmicrophysics/cam_ml_tauREV4"
-  scratch_path: "/glade/derecho/scratch/wchuang/mlmicrophysics/tau_run_10/20240206"
-  out_path: "/glade/work/wchuang/mlmicrophysics/tau_run_10/20240206"
+  scratch_path: "/glade/derecho/scratch/wchuang/mlmicrophysics/tau_run_10/optimized_rerun"
+  out_path: "/glade/work/wchuang/mlmicrophysics/tau_run_10/optimized_rerun"
   input_cols: ["QC_TAU_in", "QR_TAU_in", "NC_TAU_in", "NR_TAU_in", "PGAM", "LAMC", "LAMR", "N0R", "RHO_CLUBB", "CLOUD", "FREQR"]
-  output_cols: ["qctend_TAU", "qrtend_TAU", "nctend_TAU", "nrtend_TAU"]
+  output_cols: ["qctend_TAU", "nctend_TAU", "nrtend_TAU"]
   qc_thresh: 1e-8
-  n_quantiles: 2500 
+  n_quantiles: 1193 
   subsample: 0.01
   random_seed: 215689
   subset_data:
@@ -17,11 +17,11 @@ data:
 
 model:
   hidden_layers: 1
-  hidden_neurons: 1500 
+  hidden_neurons: 2046 
   activation: "relu"
   output_activation: "sigmoid"
-  loss: "mse"
-  lr: 0.0007
+  loss: "huber"
+  lr: 0.00123
   batch_size: 1024
   epochs: 50 # default 100
   verbose: 2
