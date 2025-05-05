@@ -397,13 +397,15 @@ def open_data_file(filename):
 
 
 def assemble_data(files, input_cols, output_cols, subsample=1, qc_thresh=1e-6,
-                  meta_cols=("lat", "lon", "lev", "depth", "row", "col", "T",
-                             "time", "qrtend_TAU", "nrtend_TAU", "nctend_TAU")
+                  meta_cols=("lev", "T",
+                             "time", "qctend_TAU", "qrtend_TAU", "nrtend_TAU", "nctend_TAU")
                   ):
     all_input_data = []
     all_output_data = []
     all_meta_data = []
+    print("files are ", files)
     for f, filename in enumerate(tqdm(files)):
+        print("processing file ", filename)
         data = open_data_file(filename)
         data = mass_conservation_filter(data, qc_thresh=qc_thresh)
         if subsample < 1:
@@ -477,7 +479,7 @@ def output_quantile_curves(quantile_transformer, col_names, quantile_file):
 
 def assemble_data_files(files, input_cols, output_cols, input_transforms, output_transforms,
                         input_scaler, output_scalers=None, train=True, subsample=1,
-                        meta_cols=("lat", "lon", "lev", "depth", "row", "col", "pressure", "temperature",
+                        meta_cols=("lev", "pressure", "temperature",
                                    "time", "qrtend_MG2", "nrtend_MG2", "nctend_MG2")):
     """
     This function loads data from a list of files

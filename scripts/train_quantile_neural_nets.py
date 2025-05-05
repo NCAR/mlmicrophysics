@@ -39,6 +39,7 @@ def main():
     # Save config file
     with open(join(out_path, "training.yml"), 'w') as file:
         yaml.dump(config, file)
+    print("Data path is ", data_path)
     files = dict()
     files["train"], files["val"], files["test"] = subset_data_files_by_date(data_path, **config["data"]["subset_data"])
     subsets = ["train", "val", "test"]
@@ -77,11 +78,12 @@ def main():
         # Filter all data
         cloud_frac_filter = input_data_df[subset]["CLOUD"].values > 1.0e-2
         qc_filter = input_data_df[subset]["QC_TAU_in"].values >= 1.0e-6
+        nrtend_filter = (output_data_df[subset]["nrtend_TAU"].values > 1.0e-10) | (output_data_df[subset]["nrtend_TAU"].values < -1.0e-10)
         if "qctend_TAU" in output_cols:
             qctend_filter = output_data_df[subset]["qctend_TAU"].values < 0
-            filter = cloud_frac_filter & qc_filter & qctend_filter
+            filter = cloud_frac_filter & qc_filter & qctend_filter & nrtend_filter
         else:
-            filter = cloud_frac_filter & qc_filter
+            filter = cloud_frac_filter & qc_filter & nrtend_filter
         # Keep filter step separate so we can write a parquet file that includes CLOUD and FREQR
         input_data_filtered[subset] = input_data_df[subset].loc[filter]
         output_data_filtered[subset] = output_data_df[subset].loc[filter]
@@ -127,9 +129,15 @@ def main():
     emulator_nn.save_fortran_model(join(out_path, "quantile_neural_net_fortran.nc"))
     emulator_nn.model.save(join(out_path, "quantile_neural_net_keras.h5"))
     test_quant_preds = emulator_nn.predict(input_quant_data["test"], batch_size=40000)
-    test_quant_preds.to_parquet(join(scratch_path, f"mp_quant_output_predicted.parquet"))
+    if type(test_quant_preds) is np.ndarray:
+        df_test_quant_preds = pd.DataFrame(test_quant_preds, columns=["qctend_TAU", "nctend_TAU", "nrtend_TAU"])
+        df_test_quant_preds.to_parquet(join(scratch_path, f"mp_quant_output_predicted.parquet"))
+    else:
+        test_quant_preds.to_parquet(join(scratch_path, f"mp_quant_output_predicted.parquet"))
+
     test_preds = output_scaler.inverse_transform(test_quant_preds)
-    test_preds.to_parquet(join(scratch_path, f"mp_output_predicted.parquet"))
+    df_test_preds = pd.DataFrame(test_preds, columns=["qctend_TAU", "nctend_TAU", "nrtend_TAU"])
+    df_test_preds.to_parquet(join(scratch_path, f"mp_output_predicted.parquet"))
     r2_test_scores = np.zeros(len(output_cols))
     for o, output_col in enumerate(output_cols):
         r2_test_scores[o] = r2_score((output_quant_data["test"][output_col].values),

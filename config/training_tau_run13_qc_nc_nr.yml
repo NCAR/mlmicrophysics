@@ -1,0 +1,53 @@
+data:
+  data_path: "/glade/derecho/scratch/wchuang/mlmicrophysics/cam_ml_tauREV4/"
+  scratch_path: "/glade/derecho/scratch/wchuang/mlmicrophysics/tau_run_13/20240606"
+  out_path: "/glade/work/wchuang/mlmicrophysics/tau_run_13/20240606"
+  input_cols: ["QC_TAU_in", "QR_TAU_in", "NC_TAU_in", "NR_TAU_in", "PGAM", "LAMC", "LAMR", "N0R", "RHO_CLUBB", "CLOUD", "FREQR"]
+  output_cols: ["QC_TAU_out", "NC_TAU_out", "NR_TAU_out"]
+  qc_thresh: 1e-8
+  n_quantiles: 1500 
+  subsample: 0.011
+  random_seed: 215689
+  subset_data:
+    train_date_start: 0
+    train_date_end: 12500
+    test_date_start: 12501
+    test_date_end: 18000
+    validation_frequency: 3
+
+model:
+  hidden_layers: 1
+  hidden_neurons: 1200 
+  activation: "relu"
+  output_activation: "sigmoid"
+  loss: "huber_loss"
+  lr: 0.001
+  batch_size: 1024
+  epochs: 50 # default 100
+  verbose: 2
+
+callbacks:
+  EarlyStopping:
+    monitor: "loss"
+    patience: 5
+    mode: "min"
+    verbose: 0
+  ReduceLROnPlateau: 
+    monitor: "loss"
+    factor: 0.1
+    patience: 2
+    min_lr: 1.0e-12
+    min_delta: 1.0e-08
+    mode: "min"
+    verbose: 0
+  CSVLogger:
+    filename: "training_log.csv"
+    separator: ","
+    append: False
+  ModelCheckpoint:
+    filepath: "model.h5"
+    monitor: "loss"
+    save_weights: True
+    save_best_only: True
+    mode: "min"
+    verbose: 0

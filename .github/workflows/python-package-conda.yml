@@ -12,14 +12,9 @@ jobs:
         shell: bash -l {0}
     steps:
     - uses: actions/checkout@v2
-    - uses: conda-incubator/setup-miniconda@v2
+    - uses: mamba-org/setup-micromamba@v2
       with:
-          miniconda-version: "latest"
-          mamba-version: "*"
-          channel-priority: true
           environment-file: environment.yml
-          auto-activate-base: false
-          activate-environment: test
     - name: Test conda
       run: |
         conda info
