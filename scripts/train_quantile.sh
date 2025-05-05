@@ -1,10 +1,10 @@
 #!/bin/bash -l
-#PBS -N quantile_train
+#PBS -N train_quantile
 #PBS -l walltime=04:00:00
 #PBS -l select=1:ncpus=16:ngpus=1:mem=256GB
-#PBS -l gpu_type=v100
-#PBS -A P93300606 
-#PBS -q casper
+#PBS -l gpu_type=a100
+#PBS -A P93300606
+#PBS -q main
 
 ### Merge output and error files
 #PBS -j oe
