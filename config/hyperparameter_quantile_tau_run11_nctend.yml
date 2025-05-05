@@ -1,5 +1,5 @@
 log: True
-save_path: "/glade/work/wchuang/mlmicrophysics/tau_run_8/echo_quantile/log"
+save_path: "/glade/work/wchuang/mlmicrophysics/tau_run_11_nctend/echo_quantile/log"
 
 pbs:
   jobs: 20
@@ -21,7 +21,7 @@ optuna:
   metric: "val_loss"
   n_trials: 900
   gpu: v100
-  save_path: "/glade/work/wchuang/mlmicrophysics/tau_run_8/echo_quantile"
+  save_path: "/glade/work/wchuang/mlmicrophysics/tau_run_11_nctend/echo_quantile"
   sampler:
     type: "TPESampler"
     n_startup_trials: 100
@@ -31,13 +31,13 @@ optuna:
       settings:
         name: "hidden_layers"
         low: 1
-        high: 2
+        high: 3
     model:hidden_neurons:
       type: "int"
       settings:
         name: "hidden_neurons"
         low: 32
-        high: 2048 
+        high: 4096 
     model:lr:
       type: "loguniform"
       settings:

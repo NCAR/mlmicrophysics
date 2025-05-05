@@ -1,12 +1,13 @@
 log: True
-save_path: "/glade/work/wchuang/mlmicrophysics/tau_run_8/echo_quantile/log"
+save_path: "/glade/p/cisl/aiml/dgagne/micro/optuna/quantile/log.txt"
 
 pbs:
   jobs: 20
   bash: ["source ~/.bashrc", "conda activate mlmicro"]
   batch:
-    l: ["select=1:ncpus=16:ngpus=1:mem=384GB", "walltime=24:00:00", "gpu_type=v100"]
-    A: "P93300606"
+    account: "NAML0001"
+    l: ["select=1:ncpus=4:mem=64GB", "walltime=06:00:00"]
+    A: "NAML0001"
     q: "casper"
     N: "echo_trial"
     o: "echo_trial.out"
@@ -16,12 +17,12 @@ optuna:
   study_name: "micro-quantile"
   storage: "micro_quantile.db"
   storage_type: "sqlite"
-  objective: "/glade/u/home/wchuang/mlmicrophysics/mlmicrophysics/objective.py"
+  objective: "/glade/u/home/dgagne/mlmicrophysics/mlmicrophysics/objective.py"
   direction: "maximize"
   metric: "val_loss"
   n_trials: 900
-  gpu: v100
-  save_path: "/glade/work/wchuang/mlmicrophysics/tau_run_8/echo_quantile"
+  gpu: 0
+  save_path: "/glade/p/cisl/aiml/dgagne/micro/optuna/quantile/"
   sampler:
     type: "TPESampler"
     n_startup_trials: 100
@@ -31,22 +32,16 @@ optuna:
       settings:
         name: "hidden_layers"
         low: 1
-        high: 2
+        high: 6
     model:hidden_neurons:
       type: "int"
       settings:
         name: "hidden_neurons"
         low: 32
-        high: 2048 
+        high: 2048
     model:lr:
       type: "loguniform"
       settings:
         name: "lr"
-        low: 0.0001
+        low: 0.00001
         high: 0.01
-    data:n_quantiles:
-      type: "int"
-      settings:
-        name: "n_quantiles"
-        low: 500
-        high: 4000

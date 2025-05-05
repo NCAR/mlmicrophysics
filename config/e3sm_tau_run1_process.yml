@@ -1,0 +1,17 @@
+model_path: "/glade/work/wchuang/mlmicrophysics/e3sm300_mlmicro11.1_tau_train/"
+model_file_start: "e3sm300_mlmicro11.1_tau_train.eam.h1"
+model_file_end: "nc"
+time_var: "time"
+time_split_interval: 1
+staggered_variables: []
+out_variables: ["T", "RHO_CLUBB", 
+                "CLOUD", "FREQR",
+                "P3_qc_in_TAU", "P3_nc_in_TAU", "P3_qr_in_TAU", "P3_nr_in_TAU", 
+                "P3_qc_out_TAU", "P3_nc_out_TAU", "P3_qr_out_TAU", "P3_nr_out_TAU",
+                "P3_qctend_TAU_raw", "P3_nctend_TAU_raw", "P3_qrtend_TAU_raw", "P3_nrtend_TAU_raw", 
+                "P3_mu_c", "P3_lamc", "P3_lamr", "P3_nr"]
+subset_variable: ["P3_qc_in_TAU"]
+subset_threshold: [1.0e-8]
+out_path: "/glade/derecho/scratch/wchuang/mlmicrophysics/e3sm_ml_tau1/20250108/"
+out_start: "e3sm_mp_data_tau1"
+out_format: "parquet"
